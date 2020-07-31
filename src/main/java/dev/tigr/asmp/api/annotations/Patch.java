@@ -6,6 +6,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
+ * Specifies the name of the class to patch for a patch
  * @author Tigermouthbear 7/30/20
  */
 @Retention(RetentionPolicy.RUNTIME)

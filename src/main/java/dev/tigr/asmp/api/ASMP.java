@@ -1,7 +1,9 @@
 package dev.tigr.asmp.api;
 
-import dev.tigr.asmp.api.annotations.MethodPatch;
+import dev.tigr.asmp.api.annotations.Modify;
 import dev.tigr.asmp.api.annotations.Patch;
+import dev.tigr.asmp.api.modification.Modificate;
+import dev.tigr.asmp.api.modification.Modification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.objectweb.asm.ClassReader;
@@ -9,10 +11,11 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * ASMP patch manager and administrator
@@ -27,7 +30,7 @@ public class ASMP {
 	public ASMP(String identifier) {
 		this.identifier = identifier;
 
-		LOGGER.debug("Starting ASMP with id " + identifier);
+		LOGGER.info("Starting ASMP with id " + identifier);
 	}
 
 	public void register(Class<?>... clazzes) {
@@ -48,17 +51,28 @@ public class ASMP {
 		ClassNode classNode = new ClassNode();
 		classReader.accept(classNode, ClassReader.EXPAND_FRAMES);
 
-		// patch classnode
+		// patch the classnode
 		try {
 			Class<?> patchClass = patches.get(name);
-			Object patch = patchClass.getConstructor(ClassNode.class).newInstance(classNode);
+
+			// create new instance of patch
+			Object patch;
+			Constructor<?> constructor;
+			try {
+				constructor = patchClass.getConstructor(ClassNode.class);
+				patch = constructor.newInstance(classNode);
+			} catch(NoSuchMethodException e) {
+				constructor = patchClass.getConstructor();
+				patch = constructor.newInstance();
+			}
+
+			// find the modification and run it
 			for(Method method: patchClass.getMethods()) {
-				MethodPatch methodPatch = method.getAnnotation(MethodPatch.class);
-				if(methodPatch != null) {
-					for(MethodNode methodNode: classNode.methods) {
-						if(methodNode.name.equals(methodPatch.value())) {
-							method.invoke(patch, methodNode);
-						}
+				for(Annotation annotation: method.getAnnotations()) {
+					Modificate modificate = annotation.annotationType().getAnnotation(Modificate.class);
+					if(modificate != null) {
+						Modification modification = modificate.value().getConstructor(annotation.annotationType()).newInstance(annotation);
+						modification.invoke(classNode, patch, method);
 					}
 				}
 			}
