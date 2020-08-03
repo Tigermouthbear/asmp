@@ -1,0 +1,14 @@
+dependencies {
+    // asmp
+    implementation project(":asmp")
+
+    // javax.annotations.Nullable (used in minecraft forge class transformers)
+    implementation "com.google.code.findbugs:jsr305:3.0.2"
+
+    testCompile "junit:junit:4.12"
+}
+
+jar {
+    // exclude wrapper stuff
+    exclude("net/**")
+}

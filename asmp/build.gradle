@@ -1,0 +1,12 @@
+dependencies {
+    // logger4j
+    implementation "org.apache.logging.log4j:log4j-api:2.13.3"
+
+    // asm
+    implementation "org.ow2.asm:asm:7.3.1"
+    implementation "org.ow2.asm:asm-tree:7.3.1"
+    implementation "org.ow2.asm:asm-commons:7.3.1"
+    implementation "org.ow2.asm:asm-util:7.3.1"
+
+    testCompile "junit:junit:4.12"
+}

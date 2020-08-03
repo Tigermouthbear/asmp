@@ -1,3 +1,6 @@
 .gradle
 /build/
 .idea
+*.iml
+asmp-forge/build
+asmp/build
