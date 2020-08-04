@@ -1,6 +1,7 @@
 package dev.tigr.asmp.modification.modifications;
 
 import dev.tigr.asmp.ASMP;
+import dev.tigr.asmp.NodeUtils;
 import dev.tigr.asmp.annotations.modifications.Modify;
 import dev.tigr.asmp.modification.Modification;
 import org.objectweb.asm.tree.ClassNode;
@@ -23,13 +24,12 @@ public class ModifyModification extends Modification<Modify> {
         String name = unmapMethod(annotation.value());
         String desc = unmapDesc(annotation.desc());
 
-        for(MethodNode methodNode: classNode.methods) {
-            if(methodNode.name.equals(name) && (desc.isEmpty() || methodNode.desc.equals(desc))) {
-                try {
-                    method.invoke(patch, methodNode);
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    e.printStackTrace();
-                }
+        MethodNode methodNode = desc.isEmpty() ? NodeUtils.getMethod(classNode, name) : NodeUtils.getMethod(classNode, name, desc);
+        if(methodNode != null) {
+            try {
+                method.invoke(patch, methodNode);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
             }
         }
     }

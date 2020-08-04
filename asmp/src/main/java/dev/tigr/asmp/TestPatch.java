@@ -1,7 +1,7 @@
 package dev.tigr.asmp;
 
-import dev.tigr.asmp.annotations.modifications.Modify;
 import dev.tigr.asmp.annotations.Patch;
+import dev.tigr.asmp.annotations.modifications.Modify;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 

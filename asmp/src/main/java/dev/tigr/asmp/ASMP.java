@@ -15,7 +15,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * ASMP patch manager and administrator
@@ -72,7 +73,7 @@ public class ASMP {
 				patch = constructor.newInstance();
 			}
 
-			// find the modification and run it
+			// find the modifications and run them
 			for(Method method: patchClass.getMethods()) {
 				for(Annotation annotation: method.getAnnotations()) {
 					Modificate modificate = annotation.annotationType().getAnnotation(Modificate.class);
@@ -82,6 +83,7 @@ public class ASMP {
 					}
 				}
 			}
+
 			//TODO: Make this error messages better
 		} catch(InstantiationException e) {
 			LOGGER.error("[" + identifier + "] Failed to transform class " + name + "! InstantiationException");

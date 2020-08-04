@@ -1,6 +1,7 @@
 package dev.tigr.asmp.modification.modifications;
 
 import dev.tigr.asmp.ASMP;
+import dev.tigr.asmp.NodeUtils;
 import dev.tigr.asmp.annotations.At;
 import dev.tigr.asmp.annotations.modifications.Inject;
 import dev.tigr.asmp.modification.Modification;
@@ -25,27 +26,26 @@ public class InjectModification extends Modification<Inject> {
         String name = unmapMethod(annotation.method());
         String desc = unmapDesc(annotation.desc());
 
-        for(MethodNode methodNode: classNode.methods) {
-            if(methodNode.name.equals(name) && (desc.isEmpty() || methodNode.desc.equals(desc))) {
-                InsnList insnList = new InsnList(); // create insn list
+        MethodNode methodNode = desc.isEmpty() ? NodeUtils.getMethod(classNode, name) : NodeUtils.getMethod(classNode, name, desc);
+        if(methodNode != null) {
+            InsnList insnList = new InsnList(); // create insn list
 
-                // pass list to method
-                try {
-                    method.invoke(patch, insnList);
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    e.printStackTrace();
-                }
+            // pass list to method
+            try {
+                method.invoke(patch, insnList);
+            } catch (IllegalAccessException | InvocationTargetException e) {
+                e.printStackTrace();
+            }
 
-                // insert the list before the first node
-                switch(at.value()) {
-                    case HEAD:
-                        methodNode.instructions.insertBefore(methodNode.instructions.getFirst(), insnList);
-                        break;
-                    case RETURN:
-                        methodNode.instructions.insertBefore(methodNode.instructions.getLast(), insnList);
-                    case INVOKE:
-                        ASMP.LOGGER.info("This feature hasn't been developed yet!");
-                }
+            // insert the list before the first node
+            switch(at.value()) {
+                case HEAD:
+                    methodNode.instructions.insertBefore(methodNode.instructions.getFirst(), insnList);
+                    break;
+                case RETURN:
+                    methodNode.instructions.insertBefore(methodNode.instructions.getLast(), insnList);
+                case INVOKE:
+                    ASMP.LOGGER.info("This feature hasn't been developed yet!");
             }
         }
     }

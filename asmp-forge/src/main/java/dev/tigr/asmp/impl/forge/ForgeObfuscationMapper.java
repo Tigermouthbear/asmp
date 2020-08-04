@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Tigermouthbear 8/1/20
@@ -26,14 +25,9 @@ public class ForgeObfuscationMapper implements IObfuscationMapper {
         Map<String, String> map = new HashMap<>();
         BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
 
-        AtomicInteger i = new AtomicInteger();
         bufferedReader.lines().forEach(line -> {
-            if(i.get() != 0) {
-                String[] args = line.split(",");
-                map.put(args[1], args[0]);
-            } else {
-                i.addAndGet(1);
-            }
+            String[] args = line.split(",");
+            map.put(args[1], args[0]);
         });
 
         return map;
