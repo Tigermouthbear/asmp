@@ -30,11 +30,16 @@ public class InjectModification extends Modification<Inject> {
         if(methodNode != null) {
             InsnList insnList = new InsnList(); // create insn list
 
-            // pass list to method
-            try {
-                method.invoke(patch, insnList);
-            } catch (IllegalAccessException | InvocationTargetException e) {
-                e.printStackTrace();
+            if(method.getParameterTypes().length == 1 && method.getParameterTypes()[0] == MethodNode.class) {
+                // pass list to method
+                try {
+                    method.invoke(patch, insnList);
+                } catch (IllegalAccessException | InvocationTargetException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                insnList.add(NodeUtils.getMethod(NodeUtils.readClassNode(patch), method.getName()).instructions);
+                insnList.remove(insnList.getLast());
             }
 
             // insert the list before the first node
