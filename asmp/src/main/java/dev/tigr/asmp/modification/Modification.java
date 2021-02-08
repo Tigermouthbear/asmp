@@ -70,4 +70,13 @@ public abstract class Modification<T extends Annotation> {
     protected String unmapDesc(String desc) {
         return asmp.getObfuscationMapper().unmapDesc(desc);
     }
+
+    /**
+     * Unmaps a method reference (name + desc)
+     * @param descriptor method reference/descriptor (name + desc)
+     * @return unmapped method reference
+     */
+    protected String unmapMethodReference(String descriptor) {
+        return asmp.getObfuscationMapper().unmapMethodReference(descriptor);
+    }
 }

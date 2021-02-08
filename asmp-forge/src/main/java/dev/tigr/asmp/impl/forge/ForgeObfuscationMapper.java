@@ -13,6 +13,8 @@ import java.util.Map;
  * @author Tigermouthbear 8/1/20
  */
 public class ForgeObfuscationMapper implements IObfuscationMapper {
+    public static ForgeObfuscationMapper INSTANCE = new ForgeObfuscationMapper();
+
     private final Map<String, String> fieldMappings;
     private final Map<String, String> methodMappings;
 

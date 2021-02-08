@@ -7,6 +7,8 @@ dependencies {
     implementation "org.ow2.asm:asm-tree:7.3.1"
     implementation "org.ow2.asm:asm-commons:7.3.1"
     implementation "org.ow2.asm:asm-util:7.3.1"
+}
 
-    testCompile "junit:junit:4.12"
+jar {
+    exclude "dev/tigr/asmp/TestPatch.class"
 }

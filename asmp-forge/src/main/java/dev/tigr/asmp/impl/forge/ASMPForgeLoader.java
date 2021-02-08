@@ -1,6 +1,5 @@
 package dev.tigr.asmp.impl.forge;
 
-
 import dev.tigr.asmp.ASMP;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
@@ -13,10 +12,8 @@ import java.util.Map;
  * @author Tigermouthbear 7/30/20
  */
 public class ASMPForgeLoader extends ASMP implements IClassTransformer, IFMLLoadingPlugin {
-	private static final ForgeObfuscationMapper OBFUSCATION_MAPPER = new ForgeObfuscationMapper();
-
 	public ASMPForgeLoader(String identifier) {
-		super(identifier, OBFUSCATION_MAPPER);
+		super(identifier, ForgeObfuscationMapper.INSTANCE);
 	}
 
 	@Override

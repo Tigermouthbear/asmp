@@ -21,10 +21,7 @@ public class ModifyModification extends Modification<Modify> {
 
     @Override
     public void invoke(ClassNode classNode, Object patch, Method method) {
-        String name = unmapMethod(annotation.value());
-        String desc = unmapDesc(annotation.desc());
-
-        MethodNode methodNode = desc.isEmpty() ? NodeUtils.getMethod(classNode, name) : NodeUtils.getMethod(classNode, name, desc);
+        MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(annotation.value()));
         if(methodNode != null) {
             try {
                 method.invoke(patch, methodNode);

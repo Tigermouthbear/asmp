@@ -46,7 +46,10 @@ public class ASMP {
 
 	public void register(Class<?> clazz) {
 		Patch patch = clazz.getAnnotation(Patch.class);
-		if(patch != null) patches.put(getObfuscationMapper().unmapClass(patch.value()), clazz);
+		if(patch != null) {
+			// get class name
+			patches.put(getObfuscationMapper().unmapClass(patch.value()), clazz);
+		}
 		else LOGGER.error("[" + identifier + "] Failed to add patch " + clazz.getName() + ", Patch annotation missing");
 	}
 
@@ -102,7 +105,7 @@ public class ASMP {
 		}
 
 		// write classnode to classwriter
-		ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+		ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
 		classNode.accept(classWriter);
 
 		return classWriter.toByteArray();
