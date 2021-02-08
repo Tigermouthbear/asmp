@@ -11,6 +11,10 @@ public class CallbackInfo {
         cancelled = true;
     }
 
+    public void setCancelled(boolean cancelled) {
+        this.cancelled = cancelled;
+    }
+
     public boolean isCancelled() {
         return cancelled;
     }

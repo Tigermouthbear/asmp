@@ -9,7 +9,6 @@ import dev.tigr.asmp.callback.CallbackInfoReturnable;
 import dev.tigr.asmp.exceptions.ASMPMissingCallbackException;
 import dev.tigr.asmp.exceptions.ASMPMissingStaticModifierException;
 import dev.tigr.asmp.modification.Modification;
-import org.objectweb.asm.Label;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.LocalVariablesSorter;
@@ -72,7 +71,19 @@ public class InjectModification extends Modification<Inject> {
                         postList.add(new InsnNode(type.getOpcode(Opcodes.IRETURN)));
                         postList.add(l0);
                     } else if(regular) {
-                        // not returnable
+                        preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
+                        preList.add(new InsnNode(Opcodes.DUP));
+                        preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
+                        preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+
+                        postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                        postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfo", "isCancelled", "()Z", false));
+                        postList.add(new InsnNode(Opcodes.ICONST_1));
+                        LabelNode l0 = new LabelNode();
+                        postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
+                        postList.add(new InsnNode(type.getOpcode(Opcodes.RETURN)));
+                        postList.add(l0);
                     }
 
                     // insert callback and list at head
