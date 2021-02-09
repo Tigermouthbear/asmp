@@ -95,7 +95,7 @@ public class NodeUtils {
                 descriptor = "(D)Ljava/lang/Double";
                 break;
             default:
-                return new InsnNode(Opcodes.NOP);
+                return null;
         }
 
         return new MethodInsnNode(Opcodes.INVOKESTATIC, owner, "valueOf", descriptor, false);
@@ -126,7 +126,7 @@ public class NodeUtils {
 
     public static AbstractInsnNode castToNonPrimitive(Type type) {
         String nonPrimitive = getNonPrimitiveClass(type);
-        if(nonPrimitive.equals("java/lang/Object")) return new InsnNode(Opcodes.NOP);
+        if(nonPrimitive.equals("java/lang/Object")) return new TypeInsnNode(Opcodes.CHECKCAST, type.getClassName());
         else return new TypeInsnNode(Opcodes.CHECKCAST, nonPrimitive);
     }
 
@@ -177,7 +177,7 @@ public class NodeUtils {
                 name = "doubleValue";
                 break;
             default:
-                return new InsnNode(Opcodes.NOP);
+                return null;
         }
 
         return new MethodInsnNode(Opcodes.INVOKEVIRTUAL, owner, name, descriptor, false);

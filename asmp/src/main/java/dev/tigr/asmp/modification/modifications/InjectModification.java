@@ -84,7 +84,8 @@ public class InjectModification extends Modification<Inject> {
                         postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                         postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
                         postList.add(NodeUtils.castToNonPrimitive(type));
-                        postList.add(NodeUtils.primitiveValueInsnNode(type));
+                        AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
+                        if(primitiveValueNode != null) postList.add(primitiveValueNode);
                         postList.add(new InsnNode(type.getOpcode(Opcodes.IRETURN)));
                         postList.add(l0);
                     } else if(regular) {
@@ -135,7 +136,8 @@ public class InjectModification extends Modification<Inject> {
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
                         preList.add(new InsnNode(Opcodes.DUP));
                         preList.add(new VarInsnNode(loadOp, returnId));
-                        preList.add(NodeUtils.valueOfInsnNode(type));
+                        AbstractInsnNode valueOfNode = NodeUtils.valueOfInsnNode(type);
+                        if(valueOfNode != null) preList.add(valueOfNode);
                         preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
                         preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
                         preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
@@ -144,7 +146,8 @@ public class InjectModification extends Modification<Inject> {
                         postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                         postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
                         postList.add(NodeUtils.castToNonPrimitive(type));
-                        postList.add(NodeUtils.primitiveValueInsnNode(type));
+                        AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
+                        if(primitiveValueNode != null) postList.add(primitiveValueNode);
                     } else if(regular) {
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
                         preList.add(new InsnNode(Opcodes.DUP));
@@ -207,7 +210,8 @@ public class InjectModification extends Modification<Inject> {
                             preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
                             preList.add(new InsnNode(Opcodes.DUP));
                             preList.add(new VarInsnNode(loadOp, returnId));
-                            preList.add(NodeUtils.valueOfInsnNode(type));
+                            AbstractInsnNode valueOfNode = NodeUtils.valueOfInsnNode(type);
+                            if(valueOfNode != null) preList.add(valueOfNode);
                             preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
                             preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
                             preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
@@ -218,15 +222,18 @@ public class InjectModification extends Modification<Inject> {
                             postList.add(new InsnNode(Opcodes.ICONST_1));
                             LabelNode l0 = new LabelNode();
                             postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
-                            postList.add(new InsnNode(type.getOpcode(Opcodes.RETURN)));
+                            postList.add(new InsnNode(Opcodes.RETURN));
                             postList.add(l0);
-                            //postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                            postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                             postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
                             postList.add(NodeUtils.castToNonPrimitive(type));
-                            postList.add(NodeUtils.primitiveValueInsnNode(type));
+                            AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
+                            if(primitiveValueNode != null) postList.add(primitiveValueNode);
                         }
                     } else {
                         if(isTargetVoid) {
+                            Type returnType = Type.getReturnType(methodNode.desc);
+
                             preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
                             preList.add(new InsnNode(Opcodes.DUP));
                             preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "()V", false));
@@ -241,16 +248,18 @@ public class InjectModification extends Modification<Inject> {
                             postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
                             postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                             postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
-                            postList.add(NodeUtils.castToNonPrimitive(type));
-                            postList.add(NodeUtils.primitiveValueInsnNode(type));
-                            postList.add(new InsnNode(type.getOpcode(Opcodes.IRETURN)));
+                            postList.add(NodeUtils.castToNonPrimitive(returnType));
+                            AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(returnType);
+                            if(primitiveValueNode != null) postList.add(primitiveValueNode);
+                            postList.add(new InsnNode(returnType.getOpcode(Opcodes.IRETURN)));
                             postList.add(l0);
                         } else {
                             preList.add(new VarInsnNode(storeOp, returnId));
                             preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
                             preList.add(new InsnNode(Opcodes.DUP));
                             preList.add(new VarInsnNode(loadOp, returnId));
-                            preList.add(NodeUtils.valueOfInsnNode(type));
+                            AbstractInsnNode valueOfNode = NodeUtils.valueOfInsnNode(type);
+                            if(valueOfNode != null) preList.add(valueOfNode);
                             preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
                             preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
                             preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
@@ -259,7 +268,8 @@ public class InjectModification extends Modification<Inject> {
                             postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                             postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
                             postList.add(NodeUtils.castToNonPrimitive(type));
-                            postList.add(NodeUtils.primitiveValueInsnNode(type));
+                            AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
+                            if(primitiveValueNode != null) postList.add(primitiveValueNode);
                         }
                     }
 
