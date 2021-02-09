@@ -2097,7 +2097,7 @@ field_151360_e,AMPLIFIED
 field_151361_l,hasInfoNotice
 field_151363_b,attacker
 field_151364_a,user
-field_151365_b,target
+field_151365_b,reference
 field_151366_a,user
 field_151369_A,LURE
 field_151370_z,LUCK_OF_THE_SEA
@@ -2360,7 +2360,7 @@ field_174839_a,oSize
 field_174840_a,item
 field_174841_aA,yOffset
 field_174842_aB,renderManager
-field_174843_ax,target
+field_174843_ax,reference
 field_174844_a,entity
 field_174847_a,sourceState
 field_174848_a,RANDOM
@@ -3917,7 +3917,7 @@ field_179435_c,predicate
 field_179436_a,LOGGER
 field_179439_f,classToCheck
 field_179440_d,sorter
-field_179441_e,target
+field_179441_e,reference
 field_179442_b,mob
 field_179443_c,predicate
 field_179444_a,LOGGER
@@ -4504,7 +4504,7 @@ field_184562_f,duration
 field_184565_e,INVULNERABLE
 field_184566_a,FIREWORK_ITEM
 field_184570_a,owner
-field_184571_b,target
+field_184571_b,reference
 field_184572_as,ownerBlockPos
 field_184573_c,direction
 field_184574_at,targetUniqueId
@@ -5259,7 +5259,7 @@ field_186287_m,nodeType
 field_186307_r,priority
 field_186312_b,openSet
 field_186313_c,closedSet
-field_186314_d,target
+field_186314_d,reference
 field_186326_b,entity
 field_186337_b,closedSet
 field_186338_a,data
@@ -5403,12 +5403,12 @@ field_186606_a,lootTableLocation
 field_186607_b,conditionClass
 field_186620_a,inverse
 field_186623_a,properties
-field_186624_b,target
+field_186624_b,reference
 field_186627_a,chance
 field_186628_b,lootingMultiplier
 field_186630_a,chance
 field_186634_a,scores
-field_186635_b,target
+field_186635_b,reference
 field_186642_a,NAME_TO_SERIALIZER_MAP
 field_186643_b,CLASS_TO_SERIALIZER_MAP
 field_186647_a,NAME_TO_SERIALIZER_MAP
@@ -6279,7 +6279,7 @@ field_188504_f,seeTime
 field_188505_g,strafingClockwise
 field_188506_h,strafingBackwards
 field_188507_i,strafingTime
-field_188509_g,target
+field_188509_g,reference
 field_188510_h,unseenMemoryTicks
 field_188516_a,horse
 field_188520_b,attackTime
@@ -8761,7 +8761,7 @@ field_75396_c,lookTime
 field_75397_a,ironGolem
 field_75408_d,attackCountdown
 field_75409_b,entity
-field_75410_c,target
+field_75410_c,reference
 field_75411_a,world
 field_75415_f,doorList
 field_75416_d,doorInfo

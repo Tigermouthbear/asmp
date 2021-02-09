@@ -6,17 +6,17 @@ package dev.tigr.asmp.obfuscation;
  */
 public class NoObfuscationMapper implements IObfuscationMapper {
     @Override
-    public String unmapClass(String clazz) {
-        return clazz;
+    public String unmapClass(String name) {
+        return name;
     }
 
     @Override
-    public String unmapField(String field) {
-        return field;
+    public String unmapField(String owner, String name, String type) {
+        return name;
     }
 
     @Override
-    public String unmapMethod(String method) {
-        return method;
+    public String unmapMethod(String owner, String name, String desc) {
+        return name;
     }
 }

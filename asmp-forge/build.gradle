@@ -4,6 +4,12 @@ dependencies {
 
     // javax.annotations.Nullable (used in minecraft forge class transformers)
     implementation "com.google.code.findbugs:jsr305:3.0.2"
+
+    // asm
+    implementation "org.ow2.asm:asm:7.3.1"
+    implementation "org.ow2.asm:asm-tree:7.3.1"
+    implementation "org.ow2.asm:asm-commons:7.3.1"
+    implementation "org.ow2.asm:asm-util:7.3.1"
 }
 
 jar {

@@ -1,11 +1,17 @@
-package dev.tigr.asmp;
+package dev.tigr.asmp.util;
 
+import dev.tigr.asmp.ASMP;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
+import org.objectweb.asm.util.Printer;
+import org.objectweb.asm.util.Textifier;
+import org.objectweb.asm.util.TraceMethodVisitor;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.Method;
 
 public class NodeUtils {
@@ -29,13 +35,9 @@ public class NodeUtils {
         return classNode;
     }
 
-    public static MethodNode getMethod(ClassNode classNode, String value) {
-        boolean hasDescriptor = value.contains("(");
-        int index = hasDescriptor ? value.indexOf("(") : 0;
-        String name = hasDescriptor ? value.substring(0, index) : value;
-        String desc = hasDescriptor ? value.substring(index) : null;
+    public static MethodNode getMethod(ClassNode classNode, Reference reference) {
         for(MethodNode methodNode: classNode.methods) {
-            if(methodNode.name.equals(name) && (!hasDescriptor || methodNode.desc.equals(desc))) return methodNode;
+            if(methodNode.name.equals(reference.getName()) && methodNode.desc.equals(reference.getDesc())) return methodNode;
         }
         return null;
     }
@@ -122,6 +124,12 @@ public class NodeUtils {
         }
     }
 
+    public static AbstractInsnNode castToNonPrimitive(Type type) {
+        String nonPrimitive = getNonPrimitiveClass(type);
+        if(nonPrimitive.equals("java/lang/Object")) return new InsnNode(Opcodes.NOP);
+        else return new TypeInsnNode(Opcodes.CHECKCAST, nonPrimitive);
+    }
+
     public static AbstractInsnNode primitiveValueInsnNode(Type type) {
         String owner;
         String descriptor;
@@ -174,4 +182,21 @@ public class NodeUtils {
 
         return new MethodInsnNode(Opcodes.INVOKEVIRTUAL, owner, name, descriptor, false);
     }
+
+    public static void printInsns(InsnList insnNodes) {
+        for(AbstractInsnNode insnNode: insnNodes) {
+            ASMP.LOGGER.info(insnToString(insnNode));
+        }
+    }
+
+    public static String insnToString(AbstractInsnNode insn){
+        insn.accept(mp);
+        StringWriter sw = new StringWriter();
+        printer.print(new PrintWriter(sw));
+        printer.getText().clear();
+        return sw.toString();
+    }
+
+    private static Printer printer = new Textifier();
+    private static TraceMethodVisitor mp = new TraceMethodVisitor(printer);
 }
