@@ -35,6 +35,15 @@ public class NodeUtils {
         return classNode;
     }
 
+    public static MethodNode readMethodNode(Object object, Method method) {
+        return readMethodNode(object.getClass(), method);
+    }
+
+    public static MethodNode readMethodNode(Class<?> clazz, Method method) {
+        ClassNode classNode = readClassNode(clazz);
+        return getMethod(classNode, new Reference(classNode.name, method.getName(), Type.getMethodDescriptor(method), false));
+    }
+
     public static MethodNode getMethod(ClassNode classNode, Reference reference) {
         for(MethodNode methodNode: classNode.methods) {
             if(methodNode.name.equals(reference.getName()) && methodNode.desc.equals(reference.getDesc())) return methodNode;

@@ -9,7 +9,6 @@ import dev.tigr.asmp.callback.CallbackInfoReturnable;
 import dev.tigr.asmp.exceptions.ASMPBadArgumentsException;
 import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
 import dev.tigr.asmp.exceptions.ASMPMissingCallbackException;
-import dev.tigr.asmp.exceptions.ASMPMissingStaticModifierException;
 import dev.tigr.asmp.modification.Modification;
 import dev.tigr.asmp.util.Reference;
 import org.objectweb.asm.Opcodes;
@@ -17,7 +16,6 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,10 +29,15 @@ public class InjectModification extends Modification<Inject> {
 
     @Override
     public void invoke(ClassNode classNode, Object patch, Method method) {
-        if(!Modifier.isStatic(method.getModifiers())) throw new ASMPMissingStaticModifierException(patch.getClass().getName(), method.getName());
+        // add injection to class
+        MethodNode injection = NodeUtils.readMethodNode(patch, method);
+        injection.access = Opcodes.ACC_PRIVATE;
+        injection.name = injection.name + "_asmp_injection" + classNode.methods.size(); // unique name
+        classNode.methods.add(injection);
+
         MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(annotation.method()));
         if(methodNode != null) {
-            MethodInsnNode injectNode = new MethodInsnNode(Opcodes.INVOKESTATIC, patch.getClass().getName().replaceAll("\\.", "/"), method.getName(), NodeUtils.getDescriptor(method));
+            MethodInsnNode injectNode = new MethodInsnNode(Opcodes.INVOKEVIRTUAL, classNode.name, injection.name, injection.desc);
 
             // make sure it has callback
             boolean returnable = method.getParameterTypes()[0] == CallbackInfoReturnable.class;
@@ -73,6 +76,7 @@ public class InjectModification extends Modification<Inject> {
                         preList.add(new InsnNode(Opcodes.DUP));
                         preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "()V", false));
                         preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                         preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                         preList.add(argInsns);
 
@@ -93,6 +97,7 @@ public class InjectModification extends Modification<Inject> {
                         preList.add(new InsnNode(Opcodes.DUP));
                         preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
                         preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                         preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                         preList.add(argInsns);
 
@@ -124,14 +129,15 @@ public class InjectModification extends Modification<Inject> {
                     Type type = Type.getReturnType(methodNode.desc);
                     int storeOp = type.getOpcode(Opcodes.ISTORE);
                     int loadOp = type.getOpcode(Opcodes.ILOAD);
-                    int returnId = methodNode.maxLocals;
-                    int callbackId = returnId + 1;
 
                     // create lists
                     InsnList preList = new InsnList();
                     InsnList postList = new InsnList();
 
                     if(returnable) {
+                        int returnId = methodNode.maxLocals;
+                        int callbackId = returnId + 1;
+
                         preList.add(new VarInsnNode(storeOp, returnId));
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
                         preList.add(new InsnNode(Opcodes.DUP));
@@ -140,6 +146,7 @@ public class InjectModification extends Modification<Inject> {
                         if(valueOfNode != null) preList.add(valueOfNode);
                         preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
                         preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                         preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                         preList.add(argInsns);
 
@@ -149,10 +156,17 @@ public class InjectModification extends Modification<Inject> {
                         AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
                         if(primitiveValueNode != null) postList.add(primitiveValueNode);
                     } else if(regular) {
+                        int callbackId = methodNode.maxLocals;
+
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
                         preList.add(new InsnNode(Opcodes.DUP));
                         preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
+                        preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                         preList.add(argInsns);
+
+                        NodeUtils.printInsns(injection.instructions);
                     }
 
                     // insert callback and list before all returns
@@ -195,6 +209,7 @@ public class InjectModification extends Modification<Inject> {
                             preList.add(new InsnNode(Opcodes.DUP));
                             preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
                             preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                             preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                             preList.add(argInsns);
 
@@ -214,6 +229,7 @@ public class InjectModification extends Modification<Inject> {
                             if(valueOfNode != null) preList.add(valueOfNode);
                             preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
                             preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                             preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                             preList.add(argInsns);
 
@@ -238,6 +254,7 @@ public class InjectModification extends Modification<Inject> {
                             preList.add(new InsnNode(Opcodes.DUP));
                             preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "()V", false));
                             preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                             preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                             preList.add(argInsns);
 
@@ -262,6 +279,7 @@ public class InjectModification extends Modification<Inject> {
                             if(valueOfNode != null) preList.add(valueOfNode);
                             preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
                             preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                             preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                             preList.add(argInsns);
 
