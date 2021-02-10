@@ -1,7 +1,6 @@
 package dev.tigr.asmp.modification.modifications;
 
 import dev.tigr.asmp.ASMP;
-import dev.tigr.asmp.util.NodeUtils;
 import dev.tigr.asmp.annotations.At;
 import dev.tigr.asmp.annotations.modifications.Inject;
 import dev.tigr.asmp.callback.CallbackInfo;
@@ -10,6 +9,7 @@ import dev.tigr.asmp.exceptions.ASMPBadArgumentsException;
 import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
 import dev.tigr.asmp.exceptions.ASMPMissingCallbackException;
 import dev.tigr.asmp.modification.Modification;
+import dev.tigr.asmp.util.NodeUtils;
 import dev.tigr.asmp.util.Reference;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -165,8 +165,6 @@ public class InjectModification extends Modification<Inject> {
                         preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
                         preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
                         preList.add(argInsns);
-
-                        NodeUtils.printInsns(injection.instructions);
                     }
 
                     // insert callback and list before all returns

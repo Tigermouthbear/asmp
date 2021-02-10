@@ -69,11 +69,11 @@ public class ASMP {
 			Object patch;
 			Constructor<?> constructor;
 			try {
-				constructor = patchClass.getConstructor(ClassNode.class);
-				patch = constructor.newInstance(classNode);
-			} catch(NoSuchMethodException e) {
 				constructor = patchClass.getConstructor();
 				patch = constructor.newInstance();
+			} catch(NoSuchMethodException e) {
+				e.printStackTrace();
+				return bytes; // fail
 			}
 
 			// find the modifications and run them
