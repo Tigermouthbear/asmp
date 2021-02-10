@@ -8,7 +8,7 @@ public class Reference {
     private final String owner;
     private final String name;
     private final String desc;
-    private boolean field;
+    private final boolean field;
 
     public Reference(String owner, String name, String desc, boolean field) {
         this.owner = owner;
@@ -32,5 +32,9 @@ public class Reference {
     @Override
     public String toString() {
         return "L" + owner + ";" + name + (field ? ":" : "") + desc;
+    }
+
+    public boolean isVoid() {
+        return desc.endsWith("V");
     }
 }

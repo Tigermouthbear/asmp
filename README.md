@@ -5,6 +5,7 @@ Java class patcher using ASM and compatible with Minecraft Forge
 - Shadow variables
 - FIELD Inject
 - Redirect
+- Slice bytecode selection
 - Overwrite (should be pretty easy)
 - Gradle Plugin to optimize jar sizes (only pack needed mappings)
 

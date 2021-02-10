@@ -55,17 +55,6 @@ public class NodeUtils {
         return abstractInsnNode.getOpcode() >= Opcodes.IRETURN && abstractInsnNode.getOpcode() <= Opcodes.RETURN;
     }
 
-    public static String getDescriptor(Method method) {
-        Type[] arguments = Type.getArgumentTypes(method);
-        StringBuilder descriptor = new StringBuilder("(");
-        for(Type type: arguments) {
-            descriptor.append(type.getDescriptor());
-        }
-        descriptor.append(")");
-        descriptor.append(Type.getDescriptor(method.getReturnType()));
-        return descriptor.toString();
-    }
-
     public static AbstractInsnNode valueOfInsnNode(Type type) {
         String owner;
         String descriptor;

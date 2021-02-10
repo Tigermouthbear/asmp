@@ -9,15 +9,13 @@ import dev.tigr.asmp.exceptions.ASMPBadArgumentsException;
 import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
 import dev.tigr.asmp.exceptions.ASMPMissingCallbackException;
 import dev.tigr.asmp.modification.Modification;
+import dev.tigr.asmp.util.InsnModifier;
 import dev.tigr.asmp.util.NodeUtils;
-import dev.tigr.asmp.util.Reference;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author Tigermouthbear 8/1/20
@@ -29,70 +27,135 @@ public class InjectModification extends Modification<Inject> {
 
     @Override
     public void invoke(ClassNode classNode, Object patch, Method method) {
-        // add injection to class
+        // add/copy injection to class
         MethodNode injection = NodeUtils.readMethodNode(patch, method);
         injection.access = Opcodes.ACC_PRIVATE;
         injection.name = injection.name + "_asmp_injection" + classNode.methods.size(); // unique name
         classNode.methods.add(injection);
 
+        // find method node
         MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(annotation.method()));
         if(methodNode != null) {
-            MethodInsnNode injectNode = new MethodInsnNode(Opcodes.INVOKEVIRTUAL, classNode.name, injection.name, injection.desc);
+            // general info about method node and injections
+            At.Target target = annotation.at().value();
+            Type[] argumentTypes = Type.getArgumentTypes(methodNode.desc);
+            Type returnType = Type.getReturnType(methodNode.desc);
 
-            // make sure it has callback
+            // make sure it has callback and they are correct
             boolean returnable = method.getParameterTypes()[0] == CallbackInfoReturnable.class;
             boolean regular = method.getParameterTypes()[0] == CallbackInfo.class;
-            boolean isVoid = methodNode.desc.endsWith("V");
-            if(!(regular || returnable) && !(isVoid && annotation.at().value() == At.Target.HEAD))
+            boolean isVoid = returnType == Type.VOID_TYPE;
+            if(!(regular || returnable) && !(isVoid && target == At.Target.HEAD))
                 throw new ASMPMissingCallbackException(patch.getClass().getName(), method.getName());
 
-            // see if it has method arguments
-            Type[] types = Type.getArgumentTypes(methodNode.desc);
+            // create inject node and find locations to inject
+            MethodInsnNode injectNode = new MethodInsnNode(Opcodes.INVOKEVIRTUAL, classNode.name, injection.name, injection.desc);
+            InsnModifier insnModifier = new InsnModifier(this, methodNode, annotation.at());
+
+            // see if it has method arguments and compile load arguments insns
             InsnList argInsns = new InsnList();
-            if(method.getParameterTypes().length == types.length + 1) {
+            if(method.getParameterTypes().length == argumentTypes.length + 1) {
                 // make sure args are correct
                 for(int i = 1; i < method.getParameterTypes().length; i++) {
-                    argInsns.add(new VarInsnNode(types[i-1].getOpcode(Opcodes.ILOAD), i));
+                    argInsns.add(new VarInsnNode(argumentTypes[i-1].getOpcode(Opcodes.ILOAD), i));
 
-                    if(!unmapClass(method.getParameterTypes()[i].getName().replaceAll("\\.", "/")).equals(types[i-1].getClassName()))
+                    if(!unmapClass(method.getParameterTypes()[i].getName().replaceAll("\\.", "/")).equals(argumentTypes[i-1].getClassName()))
                         throw new ASMPBadArgumentsException(patch.getClass().getName(), method.getName());
                 }
             } else if(method.getParameterTypes().length != 1) {
                 throw new ASMPBadArgumentsException(patch.getClass().getName(), method.getName());
             }
 
-            // insert the list before the first node
-            switch(annotation.at().value()) {
-                case HEAD: {
-                    // get type
-                    Type type = Type.getReturnType(methodNode.desc);
+            // generate bytecode inserts for loading callback method
+            InsnList preList = new InsnList();
+            InsnList postList = new InsnList();
+            if(target == At.Target.HEAD) {
+                int callbackId = methodNode.maxLocals;
+
+                if(returnable) {
+                    preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
+                    preList.add(new InsnNode(Opcodes.DUP));
+                    preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "()V", false));
+                    preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    preList.add(argInsns);
+
+                    postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "isCancelled", "()Z", false));
+                    postList.add(new InsnNode(Opcodes.ICONST_1));
+                    LabelNode l0 = new LabelNode();
+                    postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
+                    postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
+                    postList.add(NodeUtils.castToNonPrimitive(returnType));
+                    AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(returnType);
+                    if(primitiveValueNode != null) postList.add(primitiveValueNode);
+                    postList.add(new InsnNode(returnType.getOpcode(Opcodes.IRETURN)));
+                    postList.add(l0);
+                } else if(regular) {
+                    preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
+                    preList.add(new InsnNode(Opcodes.DUP));
+                    preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
+                    preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    preList.add(argInsns);
+
+                    postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfo", "isCancelled", "()Z", false));
+                    postList.add(new InsnNode(Opcodes.ICONST_1));
+                    LabelNode l0 = new LabelNode();
+                    postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
+                    postList.add(new InsnNode(Opcodes.RETURN));
+                    postList.add(l0);
+                }
+            } else if(target == At.Target.RETURN) {
+                int storeOp = returnType.getOpcode(Opcodes.ISTORE);
+                int loadOp = returnType.getOpcode(Opcodes.ILOAD);
+
+                if(returnable) {
+                    int returnId = methodNode.maxLocals;
+                    int callbackId = returnId + 1;
+
+                    preList.add(new VarInsnNode(storeOp, returnId));
+                    preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
+                    preList.add(new InsnNode(Opcodes.DUP));
+                    preList.add(new VarInsnNode(loadOp, returnId));
+                    AbstractInsnNode valueOfNode = NodeUtils.valueOfInsnNode(returnType);
+                    if(valueOfNode != null) preList.add(valueOfNode);
+                    preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
+                    preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    preList.add(argInsns);
+
+                    postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
+                    postList.add(NodeUtils.castToNonPrimitive(returnType));
+                    AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(returnType);
+                    if(primitiveValueNode != null) postList.add(primitiveValueNode);
+                } else {
                     int callbackId = methodNode.maxLocals;
 
-                    // create pre list
-                    InsnList preList = new InsnList();
-                    InsnList postList = new InsnList();
-                    if(returnable) {
-                        preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
-                        preList.add(new InsnNode(Opcodes.DUP));
-                        preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "()V", false));
-                        preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
-                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                        preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                        preList.add(argInsns);
+                    preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
+                    preList.add(new InsnNode(Opcodes.DUP));
+                    preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
+                    preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                    preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                    preList.add(argInsns);
+                }
+            } else if(target == At.Target.INVOKE) {
+                Type type = Type.getReturnType(insnModifier.getTargetReference().getDesc());
+                boolean isTargetVoid = insnModifier.getTargetReference().isVoid();
+                int storeOp = returnType.getOpcode(Opcodes.ISTORE);
+                int loadOp = returnType.getOpcode(Opcodes.ILOAD);
+                int callbackId = methodNode.maxLocals;
+                int returnId = methodNode.maxLocals + 1;
 
-                        postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                        postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "isCancelled", "()Z", false));
-                        postList.add(new InsnNode(Opcodes.ICONST_1));
-                        LabelNode l0 = new LabelNode();
-                        postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
-                        postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                        postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
-                        postList.add(NodeUtils.castToNonPrimitive(type));
-                        AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
-                        if(primitiveValueNode != null) postList.add(primitiveValueNode);
-                        postList.add(new InsnNode(type.getOpcode(Opcodes.IRETURN)));
-                        postList.add(l0);
-                    } else if(regular) {
+                if(isVoid) {
+                    if(isTargetVoid) {
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
                         preList.add(new InsnNode(Opcodes.DUP));
                         preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
@@ -108,36 +171,55 @@ public class InjectModification extends Modification<Inject> {
                         postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
                         postList.add(new InsnNode(Opcodes.RETURN));
                         postList.add(l0);
+                    } else {
+                        preList.add(new VarInsnNode(storeOp, returnId));
+                        preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
+                        preList.add(new InsnNode(Opcodes.DUP));
+                        preList.add(new VarInsnNode(loadOp, returnId));
+                        AbstractInsnNode valueOfNode = NodeUtils.valueOfInsnNode(type);
+                        if(valueOfNode != null) preList.add(valueOfNode);
+                        preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
+                        preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                        preList.add(argInsns);
+
+                        postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                        postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "isCancelled", "()Z", false));
+                        postList.add(new InsnNode(Opcodes.ICONST_1));
+                        LabelNode l0 = new LabelNode();
+                        postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
+                        postList.add(new InsnNode(Opcodes.RETURN));
+                        postList.add(l0);
+                        postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                        postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
+                        postList.add(NodeUtils.castToNonPrimitive(type));
+                        AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
+                        if(primitiveValueNode != null) postList.add(primitiveValueNode);
                     }
+                } else {
+                    if(isTargetVoid) {
+                        preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
+                        preList.add(new InsnNode(Opcodes.DUP));
+                        preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "()V", false));
+                        preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                        preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                        preList.add(argInsns);
 
-                    // insert callback and list at head
-                    AbstractInsnNode first = methodNode.instructions.getFirst();
-                    methodNode.instructions.insertBefore(first, preList);
-                    methodNode.instructions.insertBefore(first, injectNode);
-                    methodNode.instructions.insertBefore(first, postList);
-
-                    break;
-                }
-                case RETURN: {
-                    // find returns
-                    List<AbstractInsnNode> returns = new ArrayList<>();
-                    for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
-                        if(NodeUtils.isReturn(abstractInsnNode)) returns.add(abstractInsnNode);
-                    }
-
-                    // get opcodes and add local var index
-                    Type type = Type.getReturnType(methodNode.desc);
-                    int storeOp = type.getOpcode(Opcodes.ISTORE);
-                    int loadOp = type.getOpcode(Opcodes.ILOAD);
-
-                    // create lists
-                    InsnList preList = new InsnList();
-                    InsnList postList = new InsnList();
-
-                    if(returnable) {
-                        int returnId = methodNode.maxLocals;
-                        int callbackId = returnId + 1;
-
+                        postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                        postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "isCancelled", "()Z", false));
+                        postList.add(new InsnNode(Opcodes.ICONST_1));
+                        LabelNode l0 = new LabelNode();
+                        postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
+                        postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
+                        postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
+                        postList.add(NodeUtils.castToNonPrimitive(returnType));
+                        AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(returnType);
+                        if(primitiveValueNode != null) postList.add(primitiveValueNode);
+                        postList.add(new InsnNode(returnType.getOpcode(Opcodes.IRETURN)));
+                        postList.add(l0);
+                    } else {
                         preList.add(new VarInsnNode(storeOp, returnId));
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
                         preList.add(new InsnNode(Opcodes.DUP));
@@ -155,156 +237,19 @@ public class InjectModification extends Modification<Inject> {
                         postList.add(NodeUtils.castToNonPrimitive(type));
                         AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
                         if(primitiveValueNode != null) postList.add(primitiveValueNode);
-                    } else if(regular) {
-                        int callbackId = methodNode.maxLocals;
-
-                        preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
-                        preList.add(new InsnNode(Opcodes.DUP));
-                        preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
-                        preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
-                        preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                        preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                        preList.add(argInsns);
                     }
-
-                    // insert callback and list before all returns
-                    returns.forEach(abstractInsnNode -> {
-                        methodNode.instructions.insertBefore(abstractInsnNode, preList);
-                        methodNode.instructions.insertBefore(abstractInsnNode, injectNode);
-                        methodNode.instructions.insertBefore(abstractInsnNode, postList);
-                    });
-                    break;
                 }
-                case INVOKE: {
-                    Reference reference = unmapMethodReference(annotation.at().target());
-                    int index = annotation.at().ordinal();
-                    boolean isTargetVoid = reference.getDesc().endsWith("V");
+            }
 
-                    List<AbstractInsnNode> insns = new ArrayList<>();
-                    for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
-                        if(abstractInsnNode instanceof MethodInsnNode) {
-                            MethodInsnNode methodInsnNode = (MethodInsnNode) abstractInsnNode;
-                            if(methodInsnNode.owner.equals(reference.getOwner()) && methodInsnNode.name.equals(reference.getName())
-                                    && methodInsnNode.desc.equals(reference.getDesc()))
-                                insns.add(abstractInsnNode);
-                        }
-                    }
-
-                    // get opcodes and add local var index
-                    Type type = Type.getReturnType(reference.getDesc());
-                    int storeOp = type.getOpcode(Opcodes.ISTORE);
-                    int loadOp = type.getOpcode(Opcodes.ILOAD);
-                    int callbackId = methodNode.maxLocals;
-                    int returnId = methodNode.maxLocals + 1;
-
-                    // create lists
-                    InsnList preList = new InsnList();
-                    InsnList postList = new InsnList();
-
-                    if(isVoid) {
-                        if(isTargetVoid) {
-                            preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
-                            preList.add(new InsnNode(Opcodes.DUP));
-                            preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfo", "<init>", "()V", false));
-                            preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            preList.add(argInsns);
-
-                            postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfo", "isCancelled", "()Z", false));
-                            postList.add(new InsnNode(Opcodes.ICONST_1));
-                            LabelNode l0 = new LabelNode();
-                            postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
-                            postList.add(new InsnNode(Opcodes.RETURN));
-                            postList.add(l0);
-                        } else {
-                            preList.add(new VarInsnNode(storeOp, returnId));
-                            preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
-                            preList.add(new InsnNode(Opcodes.DUP));
-                            preList.add(new VarInsnNode(loadOp, returnId));
-                            AbstractInsnNode valueOfNode = NodeUtils.valueOfInsnNode(type);
-                            if(valueOfNode != null) preList.add(valueOfNode);
-                            preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
-                            preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            preList.add(argInsns);
-
-                            postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "isCancelled", "()Z", false));
-                            postList.add(new InsnNode(Opcodes.ICONST_1));
-                            LabelNode l0 = new LabelNode();
-                            postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
-                            postList.add(new InsnNode(Opcodes.RETURN));
-                            postList.add(l0);
-                            postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
-                            postList.add(NodeUtils.castToNonPrimitive(type));
-                            AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
-                            if(primitiveValueNode != null) postList.add(primitiveValueNode);
-                        }
-                    } else {
-                        if(isTargetVoid) {
-                            Type returnType = Type.getReturnType(methodNode.desc);
-
-                            preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
-                            preList.add(new InsnNode(Opcodes.DUP));
-                            preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "()V", false));
-                            preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            preList.add(argInsns);
-
-                            postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "isCancelled", "()Z", false));
-                            postList.add(new InsnNode(Opcodes.ICONST_1));
-                            LabelNode l0 = new LabelNode();
-                            postList.add(new JumpInsnNode(Opcodes.IF_ICMPNE, l0));
-                            postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
-                            postList.add(NodeUtils.castToNonPrimitive(returnType));
-                            AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(returnType);
-                            if(primitiveValueNode != null) postList.add(primitiveValueNode);
-                            postList.add(new InsnNode(returnType.getOpcode(Opcodes.IRETURN)));
-                            postList.add(l0);
-                        } else {
-                            preList.add(new VarInsnNode(storeOp, returnId));
-                            preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
-                            preList.add(new InsnNode(Opcodes.DUP));
-                            preList.add(new VarInsnNode(loadOp, returnId));
-                            AbstractInsnNode valueOfNode = NodeUtils.valueOfInsnNode(type);
-                            if(valueOfNode != null) preList.add(valueOfNode);
-                            preList.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "<init>", "(Ljava/lang/Object;)V", false));
-                            preList.add(new VarInsnNode(Opcodes.ASTORE, callbackId));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, 0));
-                            preList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            preList.add(argInsns);
-
-                            postList.add(new VarInsnNode(Opcodes.ALOAD, callbackId));
-                            postList.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, "dev/tigr/asmp/callback/CallbackInfoReturnable", "getValue", "()Ljava/lang/Object;", false));
-                            postList.add(NodeUtils.castToNonPrimitive(type));
-                            AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(type);
-                            if(primitiveValueNode != null) postList.add(primitiveValueNode);
-                        }
-                    }
-
-                    // insert callback and list before all returns or at ordinal
-                    if(index == -1) {
-                        insns.forEach(abstractInsnNode -> {
-                            methodNode.instructions.insert(abstractInsnNode, postList);
-                            methodNode.instructions.insert(abstractInsnNode, injectNode);
-                            methodNode.instructions.insert(abstractInsnNode, preList);
-                        });
-                    } else {
-                        AbstractInsnNode insn = insns.get(index);
-                        methodNode.instructions.insert(insn, postList);
-                        methodNode.instructions.insert(insn, injectNode);
-                        methodNode.instructions.insert(insn, preList);
-                    }
-
-                    break;
-                }
+            // insert bytecode inserts and inject node
+            if(target == At.Target.INVOKE) {
+                insnModifier.insertAfter(postList);
+                insnModifier.insertAfter(injectNode);
+                insnModifier.insertAfter(preList);
+            } else {
+                insnModifier.insertBefore(preList);
+                insnModifier.insertBefore(injectNode);
+                insnModifier.insertBefore(postList);
             }
         } else throw new ASMPMethodNotFoundException(patch.getClass().getName(), method.getName());
     }

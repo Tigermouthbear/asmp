@@ -51,7 +51,11 @@ public interface IObfuscationMapper {
         owner = unmapClass(owner);
         desc = unmapDesc(desc);
 
-        return new Reference(owner, unmapMethod(owner, name, desc), desc, false);
+        // dont try to unmap initialization blocks
+        if(!name.equals("<init>") && !name.equals("<clinit>"))
+            name = unmapMethod(owner, name, desc);
+
+        return new Reference(owner, name, desc, false);
     }
 
     /**

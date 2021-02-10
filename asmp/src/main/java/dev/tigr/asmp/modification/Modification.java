@@ -42,7 +42,7 @@ public abstract class Modification<T extends Annotation> {
      * @param clazz class name to unmap
      * @return unmapped/obfuscated name of the class
      */
-    protected String unmapClass(String clazz) {
+    public String unmapClass(String clazz) {
         return asmp.getObfuscationMapper().unmapClass(clazz);
     }
 
@@ -53,7 +53,7 @@ public abstract class Modification<T extends Annotation> {
      * @param type type of field
      * @return unmapped/obfuscated name of the field
      */
-    protected String unmapField(String owner, String name, String type) {
+    public String unmapField(String owner, String name, String type) {
         return asmp.getObfuscationMapper().unmapField(owner, name, type);
     }
 
@@ -64,7 +64,7 @@ public abstract class Modification<T extends Annotation> {
      * @param desc desc of method
      * @return unmapped/obfuscated name of the method
      */
-    protected String unmapMethod(String owner, String name, String desc) {
+    public String unmapMethod(String owner, String name, String desc) {
         return asmp.getObfuscationMapper().unmapMethod(owner, name, desc);
     }
 
@@ -73,7 +73,7 @@ public abstract class Modification<T extends Annotation> {
      * @param desc description to unmap
      * @return unmapped/obfuscated description
      */
-    protected String unmapDesc(String desc) {
+    public String unmapDesc(String desc) {
         return asmp.getObfuscationMapper().unmapDesc(desc);
     }
 
@@ -82,7 +82,7 @@ public abstract class Modification<T extends Annotation> {
      * @param descriptor field reference (owner + name + desc)
      * @return unmapped field reference
      */
-    protected Reference unmapFieldReference(String descriptor) {
+    public Reference unmapFieldReference(String descriptor) {
         return asmp.getObfuscationMapper().unmapFieldReference(descriptor);
     }
 
@@ -91,7 +91,7 @@ public abstract class Modification<T extends Annotation> {
      * @param descriptor method reference/descriptor (owner + name + desc)
      * @return unmapped method reference
      */
-    protected Reference unmapMethodReference(String descriptor) {
+    public Reference unmapMethodReference(String descriptor) {
         return asmp.getObfuscationMapper().unmapMethodReference(descriptor);
     }
 
