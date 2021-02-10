@@ -1,4 +1,5 @@
 rootProject.name = "asmp"
 
-include "asmp"
+include "asmp-core"
 include "asmp-forge"
+include "asmp-ap"
