@@ -62,10 +62,11 @@ public class ForgeObfuscationMapper implements IObfuscationMapper {
     }
 
     @Override
-    public String unmapField(String owner, String name, String type) {
+    public String unmapField(String owner, String name) {
         if(!fieldMappings.containsKey(name)) return null;
 
         // loop over searge and notch to see what matches
+        // kind of a hack but works good
         for(Map.Entry<String, String> entry: getFMLFieldMappings(owner).entrySet()) {
             for(String searge: fieldMappings.get(name)) {
                 if(searge.equals(entry.getValue())) {
@@ -83,6 +84,7 @@ public class ForgeObfuscationMapper implements IObfuscationMapper {
         if(!methodMappings.containsKey(name)) return null;
 
         // loop over searge and notch to see what matches
+        // kind of a hack but works good
         for(Map.Entry<String, String> entry: getFMLMethodMappings(owner).entrySet()) {
             for(String searge: methodMappings.get(name)) {
                 if(searge.equals(entry.getValue())) {

@@ -11,7 +11,7 @@ public class NoObfuscationMapper implements IObfuscationMapper {
     }
 
     @Override
-    public String unmapField(String owner, String name, String type) {
+    public String unmapField(String owner, String name) {
         return name;
     }
 

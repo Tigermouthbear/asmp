@@ -10,7 +10,7 @@ import dev.tigr.asmp.util.Reference;
 public interface IObfuscationMapper {
     String unmapClass(String name);
 
-    String unmapField(String owner, String name, String type);
+    String unmapField(String owner, String name);
 
     String unmapMethod(String owner, String name, String desc);
 
@@ -24,14 +24,11 @@ public interface IObfuscationMapper {
         if(!valid) throw new ASMPBadTargetException(descriptor);
 
         int index0 = descriptor.indexOf(";");
-        int index1 = descriptor.indexOf(":");
         String owner = descriptor.substring(1, index0);
-        String name = descriptor.substring(index0 + 1, index1);
-        String type = descriptor.substring(index1 + 1);
+        String name = descriptor.substring(index0);
         owner = unmapClass(owner);
-        type = type.contains(";") ? unmapClass(type) : type;
 
-        return new Reference(owner, unmapField(owner, name, type), type, true);
+        return new Reference(owner, unmapField(owner, name));
     }
 
     /**
@@ -55,7 +52,7 @@ public interface IObfuscationMapper {
         if(!name.equals("<init>") && !name.equals("<clinit>"))
             name = unmapMethod(owner, name, desc);
 
-        return new Reference(owner, name, desc, false);
+        return new Reference(owner, name, desc);
     }
 
     /**

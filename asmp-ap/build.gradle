@@ -1,3 +1,20 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath "com.github.jengelman.gradle.plugins:shadow:4.0.4"
+    }
+}
+apply plugin: "com.github.johnrengelman.shadow"
+
 dependencies {
     implementation project(":asmp-core")
+    shadow project(":asmp-core")
 }
+
+shadowJar {
+    configurations = [project.configurations.shadow]
+}
+
+build.dependsOn(shadowJar)

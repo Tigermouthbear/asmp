@@ -50,11 +50,10 @@ public abstract class Modification<T extends Annotation> {
      * Unmaps name of the field using the current {@link dev.tigr.asmp.obfuscation.IObfuscationMapper}
      * @param owner owner of field
      * @param name name of field
-     * @param type type of field
      * @return unmapped/obfuscated name of the field
      */
-    public String unmapField(String owner, String name, String type) {
-        return asmp.getObfuscationMapper().unmapField(owner, name, type);
+    public String unmapField(String owner, String name) {
+        return asmp.getObfuscationMapper().unmapField(owner, name);
     }
 
     /**

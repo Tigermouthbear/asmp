@@ -3,6 +3,7 @@ package dev.tigr.asmp.util;
 /**
  * @author Tigermouthbear 2/8/21
  * A reference to a method or field
+ * field has no desc
  */
 public class Reference {
     private final String owner;
@@ -10,11 +11,18 @@ public class Reference {
     private final String desc;
     private final boolean field;
 
-    public Reference(String owner, String name, String desc, boolean field) {
+    public Reference(String owner, String name) {
+        this.owner = owner;
+        this.name = name;
+        this.desc = null;
+        this.field = true;
+    }
+
+    public Reference(String owner, String name, String desc) {
         this.owner = owner;
         this.name = name;
         this.desc = desc;
-        this.field = field;
+        this.field = false;
     }
 
     public String getOwner() {
@@ -31,7 +39,7 @@ public class Reference {
 
     @Override
     public String toString() {
-        return "L" + owner + ";" + name + (field ? ":" : "") + desc;
+        return "L" + owner + ";" + name + (field ? "" : desc);
     }
 
     public boolean isVoid() {

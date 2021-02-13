@@ -41,7 +41,7 @@ public class NodeUtils {
 
     public static MethodNode readMethodNode(Class<?> clazz, Method method) {
         ClassNode classNode = readClassNode(clazz);
-        return getMethod(classNode, new Reference(classNode.name, method.getName(), Type.getMethodDescriptor(method), false));
+        return getMethod(classNode, new Reference(classNode.name, method.getName(), Type.getMethodDescriptor(method)));
     }
 
     public static MethodNode getMethod(ClassNode classNode, Reference reference) {
