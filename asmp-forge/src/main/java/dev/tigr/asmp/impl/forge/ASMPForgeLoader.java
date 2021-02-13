@@ -1,12 +1,13 @@
 package dev.tigr.asmp.impl.forge;
 
 import dev.tigr.asmp.ASMP;
-import dev.tigr.asmp.obfuscation.SrgObfuscationMapper;
+import dev.tigr.asmp.obfuscation.ObfuscationMapper;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Map;
@@ -44,13 +45,16 @@ public class ASMPForgeLoader extends ASMP implements IClassTransformer, IFMLLoad
 	@Override
 	public void injectData(Map<String, Object> data) {
 		boolean obfuscated = !FMLDeobfuscatingRemapper.INSTANCE.unmap("net/minecraft/client/Minecraft").equals("net/minecraft/client/Minecraft");
-		SrgObfuscationMapper srgObfuscationMapper = new SrgObfuscationMapper();
+		ObfuscationMapper obfuscationMapper = new ObfuscationMapper();
 
 		InputStream mappings = Thread.currentThread().getContextClassLoader().getResourceAsStream("asmp." + identifier + "." + (obfuscated ? "notch" : "searge") + ".srg");
 		if(mappings == null) throw new RuntimeException("ASMP failed to load mappings!");
-		srgObfuscationMapper.read(new InputStreamReader(mappings));
-
-		obfuscationMapper = srgObfuscationMapper;
+		try {
+			obfuscationMapper.read(new InputStreamReader(mappings), ObfuscationMapper.Format.SRG);
+		} catch(IOException e) {
+			e.printStackTrace();
+		}
+		this.obfuscationMapper = obfuscationMapper;
 	}
 
 	@Override

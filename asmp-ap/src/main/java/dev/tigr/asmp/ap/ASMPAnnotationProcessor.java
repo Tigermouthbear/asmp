@@ -7,8 +7,7 @@ import dev.tigr.asmp.annotations.modifications.Modify;
 import dev.tigr.asmp.exceptions.ASMPMissingApSetting;
 import dev.tigr.asmp.obfuscation.CsvNameMapper;
 import dev.tigr.asmp.obfuscation.ObfuscationMap;
-import dev.tigr.asmp.obfuscation.SrgMapper;
-import dev.tigr.asmp.obfuscation.SrgObfuscationMapper;
+import dev.tigr.asmp.obfuscation.ObfuscationMapper;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -32,11 +31,11 @@ import java.util.Set;
 })
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class ASMPAnnotationProcessor extends AbstractProcessor {
-    private final SrgObfuscationMapper srgObfuscationMapper = new SrgObfuscationMapper();
     private final CsvNameMapper csvNameMapper = new CsvNameMapper();
-    private final SrgMapper inputSrgMapper = new SrgMapper();
-    private final SrgMapper outputSrgMapper = new SrgMapper();
-    private File inputFile;
+    private final ObfuscationMapper obfuscationMapper = new ObfuscationMapper();
+    private final ObfuscationMapper inputObfuscationMapper = new ObfuscationMapper();
+    private final ObfuscationMapper outputObfuscationMapper = new ObfuscationMapper();
+    private ObfuscationMapper.Format outputFormat;
     private File outputFile;
 
     // if there are intermediary csv mappings to use
@@ -54,6 +53,8 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         String output = processingEnvironment.getOptions().get("asmp.output");
         if(input == null) throw new ASMPMissingApSetting("asmp.input");
         if(output == null) throw new ASMPMissingApSetting("asmp.output");
+        ObfuscationMapper.Format inputFormat = input.endsWith(".tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG;
+        outputFormat = output.endsWith(".tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG;
 
         // optional intermediary settings
         String methods = processingEnvironment.getOptions().get("asmp.intermediary.methods");
@@ -73,7 +74,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         }
 
         // find srg input
-        inputFile = new File(input);
+        File inputFile = new File(input);
         if(!inputFile.exists()) throw new RuntimeException("ASMP SRG input file not found!");
 
         // find output location
@@ -90,12 +91,16 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         if(intermediary) {
             loadIntermediaryMapper(processingEnvironment, methods);
             loadIntermediaryMapper(processingEnvironment, fields);
-            inputSrgMapper.setNameMapper(csvNameMapper);
+            inputObfuscationMapper.setNameMapper(csvNameMapper);
         }
 
-        // read srg
-        inputSrgMapper.read(inputFile);
-        srgObfuscationMapper.read(inputSrgMapper);
+        // read mappings
+        try {
+            inputObfuscationMapper.read(inputFile, inputFormat);
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
+        obfuscationMapper.read(inputObfuscationMapper);
     }
 
     private void loadIntermediaryMapper(ProcessingEnvironment processingEnvironment, String fields) {
@@ -118,45 +123,41 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
 
         // save srg
         try {
-            outputSrgMapper.write(outputFile);
+            outputObfuscationMapper.write(outputFile, outputFormat);
         } catch(IOException e) {
             e.printStackTrace();
         }
 
         // generate intermediary mappings if selected
         if(saveIntermediary) {
-            // read srg without remapping again
-            SrgMapper srgMapper = new SrgMapper();
-            srgMapper.read(inputFile);
-
             ObfuscationMap obfuscationMap = new ObfuscationMap();
-            for(Map.Entry<String, String> entry: outputSrgMapper.getClassMap().entrySet()) {
-                obfuscationMap.put(srgMapper.getClassMap().getDeobf(entry.getKey()), entry.getValue());
+            for(Map.Entry<String, String> entry: outputObfuscationMapper.getClassMap().entrySet()) {
+                obfuscationMap.put(inputObfuscationMapper.getClassMap().getDeobf(entry.getKey()), entry.getValue());
             }
-            outputSrgMapper.getClassMap().clear();
-            outputSrgMapper.getClassMap().putAll(obfuscationMap);
+            outputObfuscationMapper.getClassMap().clear();
+            outputObfuscationMapper.getClassMap().putAll(obfuscationMap);
             obfuscationMap.clear();
 
-            for(Map.Entry<String, String> entry: outputSrgMapper.getFieldMap().entrySet()) {
-                obfuscationMap.put(srgMapper.getFieldMap().getDeobf(entry.getKey()), entry.getValue());
+            for(Map.Entry<String, String> entry: outputObfuscationMapper.getFieldMap().entrySet()) {
+                obfuscationMap.put(inputObfuscationMapper.getFieldMap().getDeobf(entry.getKey()), entry.getValue());
             }
-            outputSrgMapper.getFieldMap().clear();
-            outputSrgMapper.getFieldMap().putAll(obfuscationMap);
+            outputObfuscationMapper.getFieldMap().clear();
+            outputObfuscationMapper.getFieldMap().putAll(obfuscationMap);
             obfuscationMap.clear();
 
-            for(Map.Entry<String, String> entry: outputSrgMapper.getMethodMap().entrySet()) {
+            for(Map.Entry<String, String> entry: outputObfuscationMapper.getMethodMap().entrySet()) {
                 if(entry.getKey().contains("<init>") || entry.getKey().contains("<clinit>")) {
                     int index = entry.getKey().indexOf(";");
                     String name = entry.getKey().substring(1, index);
-                    obfuscationMap.put(entry.getKey().replaceFirst(name, srgMapper.getClassMap().getDeobf(name)), entry.getValue());
-                } else obfuscationMap.put(srgMapper.getMethodMap().getDeobf(entry.getKey()), entry.getValue());
+                    obfuscationMap.put(entry.getKey().replaceFirst(name, inputObfuscationMapper.getClassMap().getDeobf(name)), entry.getValue());
+                } else obfuscationMap.put(inputObfuscationMapper.getMethodMap().getDeobf(entry.getKey()), entry.getValue());
             }
-            outputSrgMapper.getMethodMap().clear();
-            outputSrgMapper.getMethodMap().putAll(obfuscationMap);
+            outputObfuscationMapper.getMethodMap().clear();
+            outputObfuscationMapper.getMethodMap().putAll(obfuscationMap);
             obfuscationMap.clear();
 
             try {
-                outputSrgMapper.write(intermediaryOutputFile);
+                outputObfuscationMapper.write(intermediaryOutputFile, outputFormat);
             } catch(IOException e) {
                 e.printStackTrace();
             }
@@ -168,7 +169,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
     private void addPatches(RoundEnvironment roundEnvironment) {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(Patch.class)) {
             String name = element.getAnnotation(Patch.class).value().replaceAll("\\.", "/");
-            outputSrgMapper.addClass(srgObfuscationMapper.unmapClass(name), name);
+            outputObfuscationMapper.addClass(obfuscationMapper.unmapClass(name), name);
         }
     }
 
@@ -176,7 +177,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(At.class)) {
             At at = element.getAnnotation(At.class);
             if(at.value() == At.Target.INVOKE) {
-                outputSrgMapper.addMethod(srgObfuscationMapper.unmapMethodReference(at.target()).toString(), at.target());
+                outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(at.target()).toString(), at.target());
             }
         }
     }
@@ -184,7 +185,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
     private void addInject(RoundEnvironment roundEnvironment) {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(Inject.class)) {
             Inject inject = element.getAnnotation(Inject.class);
-            outputSrgMapper.addMethod(srgObfuscationMapper.unmapMethodReference(inject.method()).toString(), inject.method());
+            outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(inject.method()).toString(), inject.method());
         }
     }
 
@@ -192,7 +193,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(Modify.class)) {
             Modify modify = element.getAnnotation(Modify.class);
             if(modify.value().isEmpty()) continue;
-            outputSrgMapper.addMethod(srgObfuscationMapper.unmapMethodReference(modify.value()).toString(), modify.value());
+            outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(modify.value()).toString(), modify.value());
         }
     }
 }

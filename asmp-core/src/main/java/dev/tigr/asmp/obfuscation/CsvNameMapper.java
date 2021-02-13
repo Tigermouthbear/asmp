@@ -4,7 +4,7 @@ import java.io.*;
 
 /**
  * loads method/field node name remapping data from csv file and allows
- * remapping of {@link SrgObfuscationMapper}
+ * remapping of {@link ObfuscationMapper}
  * @author Tigermouthbear 2/12/21
  */
 public class CsvNameMapper {
