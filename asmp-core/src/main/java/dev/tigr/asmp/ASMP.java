@@ -26,8 +26,8 @@ public class ASMP {
 	public static final Logger LOGGER = LogManager.getLogger("ASMP");
 
 	private final Map<String, Class<?>> patches = new HashMap<>();
-	private final String identifier;
-	private final IObfuscationMapper obfuscationMapper;
+	protected final String identifier;
+	protected IObfuscationMapper obfuscationMapper;
 
 	public ASMP(String identifier) {
 		this(identifier, new NoObfuscationMapper());

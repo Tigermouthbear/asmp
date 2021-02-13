@@ -7,8 +7,8 @@ import dev.tigr.asmp.annotations.modifications.Modify;
 import dev.tigr.asmp.exceptions.ASMPMissingApSetting;
 import dev.tigr.asmp.obfuscation.CsvNameMapper;
 import dev.tigr.asmp.obfuscation.ObfuscationMap;
-import dev.tigr.asmp.obfuscation.SrgObfuscationMapper;
 import dev.tigr.asmp.obfuscation.SrgMapper;
+import dev.tigr.asmp.obfuscation.SrgObfuscationMapper;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
@@ -94,26 +94,14 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         }
 
         // read srg
-        try {
-            inputSrgMapper.read(inputFile);
-            srgObfuscationMapper.read(inputSrgMapper);
-        } catch(IOException e) {
-            e.printStackTrace();
-        }
-
-        processingEnvironment.getMessager().printMessage(Diagnostic.Kind.NOTE, "loaded ASMP AP!");
+        inputSrgMapper.read(inputFile);
+        srgObfuscationMapper.read(inputSrgMapper);
     }
 
     private void loadIntermediaryMapper(ProcessingEnvironment processingEnvironment, String fields) {
         if(fields != null) {
             File file = new File(fields);
-            if(file.exists()) {
-                try {
-                    csvNameMapper.read(file);
-                } catch(IOException e) {
-                    e.printStackTrace();
-                }
-            }
+            if(file.exists()) csvNameMapper.read(file);
             else processingEnvironment.getMessager().printMessage(Diagnostic.Kind.ERROR, "[ASMP] Intermediary file " + fields + " does not exist!");
         }
     }
@@ -139,11 +127,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         if(saveIntermediary) {
             // read srg without remapping again
             SrgMapper srgMapper = new SrgMapper();
-            try {
-                srgMapper.read(inputFile);
-            } catch(IOException e) {
-                e.printStackTrace();
-            }
+            srgMapper.read(inputFile);
 
             ObfuscationMap obfuscationMap = new ObfuscationMap();
             for(Map.Entry<String, String> entry: outputSrgMapper.getClassMap().entrySet()) {

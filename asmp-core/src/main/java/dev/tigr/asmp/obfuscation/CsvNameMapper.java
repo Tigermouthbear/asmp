@@ -10,16 +10,24 @@ import java.io.*;
 public class CsvNameMapper {
     private final ObfuscationMap mappings = new ObfuscationMap();
 
-    public void read(Reader reader) throws IOException {
-        BufferedReader bufferedReader = new BufferedReader(reader);
-        for(String line = bufferedReader.readLine(); line != null; line = bufferedReader.readLine()) {
-            readLine(line);
+    public void read(Reader reader) {
+        try {
+            BufferedReader bufferedReader = new BufferedReader(reader);
+            for(String line = bufferedReader.readLine(); line != null; line = bufferedReader.readLine()) {
+                readLine(line);
+            }
+            bufferedReader.close();
+        } catch(IOException e) {
+            e.printStackTrace();
         }
-        bufferedReader.close();
     }
 
-    public void read(File input) throws IOException {
-        read(new FileReader(input));
+    public void read(File input) {
+        try {
+            read(new FileReader(input));
+        } catch(IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void readLine(String line) {

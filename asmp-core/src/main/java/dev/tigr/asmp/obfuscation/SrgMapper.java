@@ -13,18 +13,26 @@ public class SrgMapper {
     private final ObfuscationMap methodMap = new ObfuscationMap();
     private final ObfuscationMap fieldMap = new ObfuscationMap();
 
-    public void read(Reader reader) throws IOException {
-        BufferedReader bufferedReader = new BufferedReader(reader);
-        for(String line = bufferedReader.readLine(); line != null; line = bufferedReader.readLine()) {
-            if(line.startsWith("CL: ")) readClass(line.substring(4));
-            else if(line.startsWith("FD: ")) readField(line.substring(4));
-            else if(line.startsWith("MD: ")) readMethod(line.substring(4));
+    public void read(Reader reader) {
+        try {
+            BufferedReader bufferedReader = new BufferedReader(reader);
+            for(String line = bufferedReader.readLine(); line != null; line = bufferedReader.readLine()) {
+                if(line.startsWith("CL: ")) readClass(line.substring(4));
+                else if(line.startsWith("FD: ")) readField(line.substring(4));
+                else if(line.startsWith("MD: ")) readMethod(line.substring(4));
+            }
+            bufferedReader.close();
+        } catch(IOException e) {
+            e.printStackTrace();
         }
-        bufferedReader.close();
     }
 
-    public void read(File input) throws IOException {
-        read(new FileReader(input));
+    public void read(File input) {
+        try {
+            read(new FileReader(input));
+        } catch(FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     public void read(SrgMapper srgMapper) {

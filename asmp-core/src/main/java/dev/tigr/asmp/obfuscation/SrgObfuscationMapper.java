@@ -3,7 +3,8 @@ package dev.tigr.asmp.obfuscation;
 import dev.tigr.asmp.exceptions.ASMPBadTargetException;
 import dev.tigr.asmp.util.Reference;
 
-import java.io.*;
+import java.io.File;
+import java.io.Reader;
 
 /**
  * reads an .srg file and provides an interface for deobfuscating with it's mappings
@@ -12,11 +13,11 @@ import java.io.*;
 public class SrgObfuscationMapper implements IObfuscationMapper {
     private final SrgMapper srgMapper = new SrgMapper();
 
-    public void read(Reader reader) throws IOException {
+    public void read(Reader reader) {
         srgMapper.read(reader);
     }
 
-    public void read(File file) throws IOException {
+    public void read(File file) {
         srgMapper.read(file);
     }
 
