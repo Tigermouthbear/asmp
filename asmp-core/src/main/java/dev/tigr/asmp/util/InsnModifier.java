@@ -1,11 +1,8 @@
 package dev.tigr.asmp.util;
 
 import dev.tigr.asmp.annotations.At;
-import dev.tigr.asmp.modification.Modification;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
+import dev.tigr.asmp.obfuscation.IObfuscationMapper;
+import org.objectweb.asm.tree.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,22 +16,22 @@ public class InsnModifier {
     private final List<AbstractInsnNode> nodes = new ArrayList<>();
     private final Reference reference;
 
-    public InsnModifier(Modification<?> modification, MethodNode methodNode, At at) {
+    public InsnModifier(IObfuscationMapper obfuscationMapper, ClassNode classNode, MethodNode methodNode, At at) {
         this.methodNode = methodNode;
-        reference = at.target().isEmpty() ? null : modification.unmapMethodReference(at.target());
+        reference = at.target().isEmpty() ? null : obfuscationMapper.unmapMethodReference(at.target());
 
         switch(at.value()) {
-            case HEAD:
+            case "HEAD":
                 nodes.add(methodNode.instructions.getFirst());
                 break;
-            case RETURN:
+            case "RETURN":
                 for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
                     if(NodeUtils.isReturn(abstractInsnNode)) nodes.add(abstractInsnNode);
                 }
                 break;
-            case INVOKE:
+            case "INVOKE":
                 // find method insns that match target
-                Reference reference = modification.unmapMethodReference(at.target());
+                Reference reference = obfuscationMapper.unmapMethodReference(at.target());
                 for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
                     if(abstractInsnNode instanceof MethodInsnNode) {
                         MethodInsnNode methodInsnNode = (MethodInsnNode) abstractInsnNode;
@@ -52,6 +49,10 @@ public class InsnModifier {
                 }
                 break;
         }
+    }
+
+    private void collapseSuperClass(ClassNode classNode, String descriptor) {
+        String owner = descriptor.substring(1, descriptor.indexOf(";"));
     }
 
     public void insertBefore(AbstractInsnNode abstractInsnNode) {

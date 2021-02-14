@@ -1,7 +1,6 @@
 package dev.tigr.asmp.modification.modifications;
 
 import dev.tigr.asmp.ASMP;
-import dev.tigr.asmp.annotations.At;
 import dev.tigr.asmp.annotations.modifications.Modify;
 import dev.tigr.asmp.exceptions.ASMPBadArgumentsException;
 import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
@@ -26,7 +25,7 @@ public class ModifyModification extends Modification<Modify> {
     @Override
     public void invoke(ClassNode classNode, Object patch, Method method) {
         String input = annotation.value();
-        At.Target target = annotation.at().value();
+        String target = annotation.at().value();
         if(input.isEmpty()) {
             // user wants classnode passed to method
             try {
@@ -39,7 +38,7 @@ public class ModifyModification extends Modification<Modify> {
             // we need to find a method node to use from now on
             MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(input));
             if(methodNode != null) {
-                if(target == At.Target.NONE) {
+                if(target.equals("NONE")) {
                     // user just wants raw method node
                     try {
                         method.invoke(patch, methodNode);

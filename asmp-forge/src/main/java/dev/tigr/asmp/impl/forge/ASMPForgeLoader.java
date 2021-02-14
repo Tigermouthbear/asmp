@@ -17,8 +17,18 @@ import java.util.Map;
  * @author Tigermouthbear 7/30/20
  */
 public class ASMPForgeLoader extends ASMP implements IClassTransformer, IFMLLoadingPlugin {
+	protected static final boolean OBFUSCATED = FMLDeobfuscatingRemapper.INSTANCE.unmap("net/minecraft/client/Minecraft").equals("net/minecraft/client/Minecraft");;
+
 	public ASMPForgeLoader(String identifier) {
-		super(identifier);
+		super(identifier, new ObfuscationMapper());
+
+		InputStream mappings = Thread.currentThread().getContextClassLoader().getResourceAsStream("asmp." + identifier + "." + (OBFUSCATED ? "notch" : "searge") + ".srg");
+		if(mappings == null) throw new RuntimeException("ASMP failed to load mappings!");
+		try {
+			((ObfuscationMapper) obfuscationMapper).read(new InputStreamReader(mappings), ObfuscationMapper.Format.SRG);
+		} catch(IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -44,17 +54,6 @@ public class ASMPForgeLoader extends ASMP implements IClassTransformer, IFMLLoad
 
 	@Override
 	public void injectData(Map<String, Object> data) {
-		boolean obfuscated = !FMLDeobfuscatingRemapper.INSTANCE.unmap("net/minecraft/client/Minecraft").equals("net/minecraft/client/Minecraft");
-		ObfuscationMapper obfuscationMapper = new ObfuscationMapper();
-
-		InputStream mappings = Thread.currentThread().getContextClassLoader().getResourceAsStream("asmp." + identifier + "." + (obfuscated ? "notch" : "searge") + ".srg");
-		if(mappings == null) throw new RuntimeException("ASMP failed to load mappings!");
-		try {
-			obfuscationMapper.read(new InputStreamReader(mappings), ObfuscationMapper.Format.SRG);
-		} catch(IOException e) {
-			e.printStackTrace();
-		}
-		this.obfuscationMapper = obfuscationMapper;
 	}
 
 	@Override

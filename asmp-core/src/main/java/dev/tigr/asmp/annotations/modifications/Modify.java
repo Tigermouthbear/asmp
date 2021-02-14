@@ -18,5 +18,5 @@ import java.lang.annotation.Target;
 public @interface Modify {
 	String value() default "";
 
-	At at() default @At(At.Target.NONE);
+	At at() default @At("NONE");
 }

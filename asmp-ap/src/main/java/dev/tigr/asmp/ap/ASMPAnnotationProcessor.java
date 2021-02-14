@@ -25,7 +25,6 @@ import java.util.Set;
  */
 @SupportedAnnotationTypes({
     "dev.tigr.asmp.annotations.Patch",
-    "dev.tigr.asmp.annotations.At",
     "dev.tigr.asmp.annotations.Inject",
     "dev.tigr.asmp.annotations.Modify"
 })
@@ -117,7 +116,6 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
 
         // add all mappings
         addPatches(roundEnvironment);
-        addAt(roundEnvironment);
         addInject(roundEnvironment);
         addModify(roundEnvironment);
 
@@ -173,18 +171,16 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         }
     }
 
-    private void addAt(RoundEnvironment roundEnvironment) {
-        for(Element element: roundEnvironment.getElementsAnnotatedWith(At.class)) {
-            At at = element.getAnnotation(At.class);
-            if(at.value() == At.Target.INVOKE) {
-                outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(at.target()).toString(), at.target());
-            }
+    private void addAt(At at) {
+        if(at.value().equals("INVOKE")) {
+            outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(at.target()).toString(), at.target());
         }
     }
 
     private void addInject(RoundEnvironment roundEnvironment) {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(Inject.class)) {
             Inject inject = element.getAnnotation(Inject.class);
+            addAt(inject.at());
             outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(inject.method()).toString(), inject.method());
         }
     }
@@ -193,6 +189,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(Modify.class)) {
             Modify modify = element.getAnnotation(Modify.class);
             if(modify.value().isEmpty()) continue;
+            addAt(modify.at());
             outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(modify.value()).toString(), modify.value());
         }
     }

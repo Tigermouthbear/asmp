@@ -9,9 +9,10 @@ import java.lang.annotation.RetentionPolicy;
  */
 @Retention(RetentionPolicy.RUNTIME)
 public @interface At {
-    enum Target { NONE, HEAD, RETURN, INVOKE }
-
-    Target value();
+    /**
+     * Values: NONE, HEAD, RETURN, INVOKE
+     */
+    String value();
 
     String target() default "";
 

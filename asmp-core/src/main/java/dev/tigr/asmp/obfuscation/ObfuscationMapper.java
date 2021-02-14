@@ -1,9 +1,12 @@
 package dev.tigr.asmp.obfuscation;
 
+import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.exceptions.ASMPBadTargetException;
 import dev.tigr.asmp.util.Reference;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -40,19 +43,19 @@ public class ObfuscationMapper implements IObfuscationMapper {
             if(format == Format.SRG) {
                 if(line.startsWith("CL: ")) {
                     // class
-                    String[] split = line.split(" ");
+                    String[] split = line.substring(4).split(" ");
                     if(split.length != 2) return;
                     clazzMap.put(split[0], split[1]);
                 }
                 else if(line.startsWith("FD: ")) {
                     // field
-                    String[] split = line.split(" ");
+                    String[] split = line.substring(4).split(" ");
                     if(split.length != 2) return;
                     fieldMap.put(readSrgEntry(split[0]), readSrgEntry(split[1]));
                 }
                 else if(line.startsWith("MD: ")) {
                     // method
-                    String[] split = line.split(" ");
+                    String[] split = line.substring(4).split(" ");
                     if(split.length != 4) return;
                     String obf = readSrgEntry(split[0]) + split[1];
                     String deobf = readSrgEntry(split[2]) + split[3];
@@ -148,7 +151,6 @@ public class ObfuscationMapper implements IObfuscationMapper {
                 bufferedWriter.write(deobf.substring(0, deobfIndex));
                 bufferedWriter.write(" ");
                 bufferedWriter.write(deobf.substring(deobfIndex));
-                bufferedWriter.write(" ");
                 bufferedWriter.newLine();
             }
         } else if(format == Format.TSRG) {
@@ -208,7 +210,10 @@ public class ObfuscationMapper implements IObfuscationMapper {
         String name = descriptor.substring(index0 + 1, index1);
         String desc = descriptor.substring(index1);
 
-        if(initializer) owner = unmapClass(owner);
+        if(initializer) {
+            owner = unmapClass(owner);
+            desc = unmapDesc(desc);
+        }
 
         return new Reference(owner, name, desc);
     }
@@ -222,7 +227,35 @@ public class ObfuscationMapper implements IObfuscationMapper {
     }
 
     public void addMethod(String obf, String deobf) {
-        methodMap.put(obf, deobf);
+        if(obf.contains("<init>") || obf.contains("<clinit>")) {
+            // only add class name and desc classes when initialization block
+            String obfOwner = obf.substring(1, obf.indexOf(";"));
+            List<String> obfDesc = getDescClasses(obf.substring(obf.indexOf("(")));
+            String deobfOwner = deobf.substring(1, deobf.indexOf(";"));
+            List<String> deobfDesc = getDescClasses(deobf.substring(deobf.indexOf("(")));
+            clazzMap.put(obfOwner, deobfOwner);
+            for(int i = 0; i < obfDesc.size(); i++) clazzMap.put(obfDesc.get(i), deobfDesc.get(i));
+        } else methodMap.put(obf, deobf);
+    }
+
+    private List<String> getDescClasses(String desc) {
+        boolean looking = false;
+        List<String> list = new ArrayList<>();
+        StringBuilder curr = new StringBuilder();
+
+        for(char c: desc.toCharArray()) {
+            if(!looking) {
+                if(c == 'L') looking = true;
+            } else {
+                if(c == ';') {
+                    list.add(curr.toString());
+                    curr = new StringBuilder();
+                    looking = false;
+                } else curr.append(c);
+            }
+        }
+
+        return list;
     }
 
     public void clear() {
