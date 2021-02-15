@@ -54,13 +54,8 @@ public class InjectModification extends Modification<Inject> {
             // see if it has method arguments and compile load arguments insns
             InsnList argInsns = new InsnList();
             if(method.getParameterTypes().length == argumentTypes.length + 1) {
-                // make sure args are correct
-                for(int i = 1; i < method.getParameterTypes().length; i++) {
+                for(int i = 1; i < method.getParameterTypes().length; i++)
                     argInsns.add(new VarInsnNode(argumentTypes[i-1].getOpcode(Opcodes.ILOAD), i));
-
-                    //if(!unmapClass(method.getParameterTypes()[i].getName().replaceAll("\\.", "/")).equals(argumentTypes[i-1].getClassName()))
-                        //throw new ASMPBadArgumentsException(patch.getClass().getName(), method.getName());
-                }
             } else if(method.getParameterTypes().length != 1) {
                 throw new ASMPBadArgumentsException(patch.getClass().getName(), method.getName());
             }

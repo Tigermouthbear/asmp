@@ -1,8 +1,6 @@
 package dev.tigr.asmp.obfuscation;
 
-import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.exceptions.ASMPBadTargetException;
-import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
 import dev.tigr.asmp.util.Reference;
 
 import java.io.*;
@@ -93,7 +91,7 @@ public class ObfuscationMapper implements IObfuscationMapper {
             ObfuscationMap obfuscationMap = new ObfuscationMap();
             for(Map.Entry<String, String> entry: methodMap.entrySet()) {
                 int index = entry.getKey().indexOf("(");
-                obfuscationMap.put(entry.getKey(), entry.getValue() + unmapDesc(entry.getKey().substring(index)));
+                obfuscationMap.put(entry.getKey(), entry.getValue() + mapDesc(entry.getKey().substring(index)));
             }
             methodMap.clear();
             methodMap.putAll(obfuscationMap);
@@ -175,8 +173,18 @@ public class ObfuscationMapper implements IObfuscationMapper {
     }
 
     @Override
+    public String mapClass(String name) {
+        return clazzMap.getDeobf(name);
+    }
+
+    @Override
     public String unmapField(String owner, String name) {
         return unmapFieldReference("L" + owner + ";" + name).getName();
+    }
+
+    @Override
+    public String mapField(String owner, String name) {
+        return mapFieldReference("L" + owner + ";" + name).getName();
     }
 
     @Override
@@ -185,11 +193,30 @@ public class ObfuscationMapper implements IObfuscationMapper {
     }
 
     @Override
+    public String mapMethod(String owner, String name, String desc) {
+        return mapMethodReference("L" + owner + ";" + name + desc).getName();
+    }
+
+    @Override
     public Reference unmapFieldReference(String descriptor) {
         boolean valid = descriptor.contains(";");
         if(!valid) throw new ASMPBadTargetException(descriptor);
 
         descriptor = fieldMap.getObf(descriptor);
+
+        int index0 = descriptor.indexOf(";");
+        String owner = descriptor.substring(1, index0);
+        String name = descriptor.substring(index0 + 1);
+
+        return new Reference(owner, name);
+    }
+
+    @Override
+    public Reference mapFieldReference(String descriptor) {
+        boolean valid = descriptor.contains(";");
+        if(!valid) throw new ASMPBadTargetException(descriptor);
+
+        descriptor = fieldMap.getDeobf(descriptor);
 
         int index0 = descriptor.indexOf(";");
         String owner = descriptor.substring(1, index0);
@@ -233,6 +260,41 @@ public class ObfuscationMapper implements IObfuscationMapper {
         return new Reference(owner, name, desc);
     }
 
+    @Override
+    public Reference mapMethodReference(String descriptor) {
+        boolean initializer = descriptor.contains("<init>") || descriptor.contains("<clinit>");
+        boolean inherited = descriptor.contains(";<super>.");
+        boolean valid = descriptor.contains("(") && descriptor.contains(";");
+        if(!valid) throw new ASMPBadTargetException(descriptor);
+
+        // inherited is when a method from the super class is specified
+        // the descriptor looks like: Ltest/class;<super>.method()V
+        // turns into Lobf;obf()V where obf is the name of class or method
+        // this works most of the time, but I couldn't find another way to do it
+        // with the lack of inheritance information in mapping files
+        if(inherited) {
+            String owner = descriptor.substring(1, descriptor.indexOf(";"));
+            String end = descriptor.substring(descriptor.indexOf(".") + 1);
+            Optional<String> key = methodMap.values().stream().filter(method -> method.endsWith(end)).findFirst();
+            if(!key.isPresent()) throw new RuntimeException("Invalid ASMP super method target: " + descriptor);
+            descriptor = methodMap.getObf(key.get());
+            descriptor = "L" + mapClass(owner) + descriptor.substring(descriptor.indexOf(";"));
+        } else if(!initializer) descriptor = methodMap.getDeobf(descriptor);
+
+        int index0 = descriptor.indexOf(";");
+        int index1 = descriptor.indexOf("(");
+        String owner = descriptor.substring(1, index0);
+        String name = descriptor.substring(index0 + 1, index1);
+        String desc = descriptor.substring(index1);
+
+        if(initializer) {
+            owner = mapClass(owner);
+            desc = mapDesc(desc);
+        }
+
+        return new Reference(owner, name, desc);
+    }
+
     public void addClass(String obf, String deobf) {
         clazzMap.put(obf, deobf);
     }
@@ -271,12 +333,6 @@ public class ObfuscationMapper implements IObfuscationMapper {
         }
 
         return list;
-    }
-
-    public void clear() {
-        clazzMap.clear();
-        methodMap.clear();
-        fieldMap.clear();
     }
 
     public ObfuscationMap getClassMap() {
