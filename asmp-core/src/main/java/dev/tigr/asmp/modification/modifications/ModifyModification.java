@@ -48,7 +48,7 @@ public class ModifyModification extends Modification<Modify> {
                     }
                 } else {
                     // user wants to use an insn modifier
-                    InsnModifier insnModifier = new InsnModifier(this, methodNode, annotation.at());
+                    InsnModifier insnModifier = new InsnModifier(asmp, classNode, methodNode, annotation.at());
                     try {
                         method.invoke(patch, insnModifier);
                     } catch (IllegalAccessException | InvocationTargetException e) {

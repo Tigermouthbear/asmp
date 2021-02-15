@@ -3,11 +3,11 @@ Java class patcher using ASM and compatible with Minecraft Forge
 
 ## Todo List
 - Shadow variables
-- FIELD Inject
+- FIELD @At targeting
 - Redirect
-- Slice bytecode selection
-- Overwrite (should be pretty easy)
-- Gradle Plugin to optimize jar sizes (only pack needed mappings)
+- Slice targeting
+- Overwrite (easy)
+- Gradle Plugin to automate annotation processing setup
 
 ## Forge Example (syntax is subject to change)
 ```

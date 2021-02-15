@@ -6,9 +6,9 @@ package dev.tigr.asmp.util;
  * field has no desc
  */
 public class Reference {
-    private final String owner;
-    private final String name;
-    private final String desc;
+    private String owner;
+    private String name;
+    private String desc;
     private final boolean field;
 
     public Reference(String owner, String name) {
@@ -35,6 +35,18 @@ public class Reference {
 
     public String getDesc() {
         return desc;
+    }
+
+    public void setOwner(String value) {
+        this.owner = value;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDesc(String desc) {
+        this.desc = desc;
     }
 
     @Override

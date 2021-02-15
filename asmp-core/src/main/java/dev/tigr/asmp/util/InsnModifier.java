@@ -1,9 +1,10 @@
 package dev.tigr.asmp.util;
 
+import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.annotations.At;
-import dev.tigr.asmp.obfuscation.IObfuscationMapper;
 import org.objectweb.asm.tree.*;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,13 +13,17 @@ import java.util.List;
  * @author Tigermouthbear 2/10/21
  */
 public class InsnModifier {
+    private final ASMP asmp;
+    private final ClassNode classNode;
     private final MethodNode methodNode;
     private final List<AbstractInsnNode> nodes = new ArrayList<>();
     private final Reference reference;
 
-    public InsnModifier(IObfuscationMapper obfuscationMapper, ClassNode classNode, MethodNode methodNode, At at) {
+    public InsnModifier(ASMP asmp, ClassNode classNode, MethodNode methodNode, At at) {
+        this.asmp = asmp;
+        this.classNode = classNode;
         this.methodNode = methodNode;
-        reference = at.target().isEmpty() ? null : obfuscationMapper.unmapMethodReference(at.target());
+        reference = at.target().isEmpty() ? null : asmp.getObfuscationMapper().unmapMethodReference(at.target());
 
         switch(at.value()) {
             case "HEAD":
@@ -31,7 +36,7 @@ public class InsnModifier {
                 break;
             case "INVOKE":
                 // find method insns that match target
-                Reference reference = obfuscationMapper.unmapMethodReference(at.target());
+                Reference reference = collapseSuperClass(asmp.getObfuscationMapper().unmapMethodReference(at.target()));
                 for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
                     if(abstractInsnNode instanceof MethodInsnNode) {
                         MethodInsnNode methodInsnNode = (MethodInsnNode) abstractInsnNode;
@@ -51,8 +56,8 @@ public class InsnModifier {
         }
     }
 
-    private void collapseSuperClass(ClassNode classNode, String descriptor) {
-        String owner = descriptor.substring(1, descriptor.indexOf(";"));
+    private Reference collapseSuperClass(Reference reference) {
+        return reference;
     }
 
     public void insertBefore(AbstractInsnNode abstractInsnNode) {

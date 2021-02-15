@@ -49,7 +49,7 @@ public class InjectModification extends Modification<Inject> {
 
             // create inject node and find locations to inject
             MethodInsnNode injectNode = new MethodInsnNode(Opcodes.INVOKEVIRTUAL, classNode.name, injection.name, injection.desc);
-            InsnModifier insnModifier = new InsnModifier(this, methodNode, annotation.at());
+            InsnModifier insnModifier = new InsnModifier(asmp, classNode, methodNode, annotation.at());
 
             // see if it has method arguments and compile load arguments insns
             InsnList argInsns = new InsnList();

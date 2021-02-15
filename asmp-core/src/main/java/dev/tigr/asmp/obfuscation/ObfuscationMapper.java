@@ -2,12 +2,14 @@ package dev.tigr.asmp.obfuscation;
 
 import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.exceptions.ASMPBadTargetException;
+import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
 import dev.tigr.asmp.util.Reference;
 
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Interface for reading and writing to SRG files
@@ -199,10 +201,23 @@ public class ObfuscationMapper implements IObfuscationMapper {
     @Override
     public Reference unmapMethodReference(String descriptor) {
         boolean initializer = descriptor.contains("<init>") || descriptor.contains("<clinit>");
+        boolean inherited = descriptor.contains(";<super>.");
         boolean valid = descriptor.contains("(") && descriptor.contains(";");
         if(!valid) throw new ASMPBadTargetException(descriptor);
 
-        if(!initializer) descriptor = methodMap.getObf(descriptor);
+        // inherited is when a method from the super class is specified
+        // the descriptor looks like: Ltest/class;<super>.method()V
+        // turns into Lobf;obf()V where obf is the name of class or method
+        // this works most of the time, but I couldn't find another way to do it
+        // with the lack of inheritance information in mapping files
+        if(inherited) {
+            String owner = descriptor.substring(1, descriptor.indexOf(";"));
+            String end = descriptor.substring(descriptor.indexOf(".") + 1);
+            Optional<String> key = methodMap.values().stream().filter(method -> method.endsWith(end)).findFirst();
+            if(!key.isPresent()) throw new RuntimeException("Invalid ASMP super method target: " + descriptor);
+            descriptor = methodMap.getObf(key.get());
+            descriptor = "L" + unmapClass(owner) + descriptor.substring(descriptor.indexOf(";"));
+        } else if(!initializer) descriptor = methodMap.getObf(descriptor);
 
         int index0 = descriptor.indexOf(";");
         int index1 = descriptor.indexOf("(");

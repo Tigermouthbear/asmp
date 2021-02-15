@@ -17,7 +17,7 @@ public abstract class Modification<T extends Annotation> {
     /**
      * Stores the {@link ASMP} instance this modification is linked to
      */
-    private final ASMP asmp;
+    protected final ASMP asmp;
 
     /**
      * Stores the annotation for the patch method

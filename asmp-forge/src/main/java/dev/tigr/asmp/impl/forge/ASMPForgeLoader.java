@@ -25,7 +25,7 @@ public class ASMPForgeLoader extends ASMP implements IClassTransformer, IFMLLoad
 		InputStream mappings = Thread.currentThread().getContextClassLoader().getResourceAsStream("asmp." + identifier + "." + (OBFUSCATED ? "notch" : "searge") + ".srg");
 		if(mappings == null) throw new RuntimeException("ASMP failed to load mappings!");
 		try {
-			((ObfuscationMapper) obfuscationMapper).read(new InputStreamReader(mappings), ObfuscationMapper.Format.SRG);
+			((ObfuscationMapper) getObfuscationMapper()).read(new InputStreamReader(mappings), ObfuscationMapper.Format.SRG);
 		} catch(IOException e) {
 			e.printStackTrace();
 		}
