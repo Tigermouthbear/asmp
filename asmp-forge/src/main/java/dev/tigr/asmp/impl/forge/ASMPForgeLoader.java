@@ -2,43 +2,33 @@ package dev.tigr.asmp.impl.forge;
 
 import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.obfuscation.ObfuscationMapper;
-import net.minecraft.launchwrapper.IClassTransformer;
-import net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRemapper;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
  * Modified FML loading plugin used to transform minecraft classes
- * @author Tigermouthbear 7/30/20
+ * @author Tigermouthbear 2/15/21
  */
-public class ASMPForgeLoader extends ASMP implements IClassTransformer, IFMLLoadingPlugin {
-	protected static final boolean OBFUSCATED = FMLDeobfuscatingRemapper.INSTANCE.unmap("net/minecraft/client/Minecraft").equals("net/minecraft/client/Minecraft");;
+public class ASMPForgeLoader extends ASMP implements IFMLLoadingPlugin {
+	private static final Map<String, ASMPForgeLoader> instances = new HashMap<>();
+	private final Class<?> transformer;
 
-	public ASMPForgeLoader(String identifier) {
+	public ASMPForgeLoader(String identifier, Class<?> transformer) {
 		super(identifier, new ObfuscationMapper());
-
-		InputStream mappings = Thread.currentThread().getContextClassLoader().getResourceAsStream("asmp." + identifier + "." + (OBFUSCATED ? "notch" : "searge") + ".srg");
-		if(mappings == null) throw new RuntimeException("ASMP failed to load mappings!");
-		try {
-			((ObfuscationMapper) getObfuscationMapper()).read(new InputStreamReader(mappings), ObfuscationMapper.Format.SRG);
-		} catch(IOException e) {
-			e.printStackTrace();
-		}
+		this.transformer = transformer;
+		instances.put(identifier, this);
 	}
 
-	@Override
-	public byte[] transform(String name, String transformedName, byte[] basicClass) {
-		return transform(transformedName, basicClass);
+	public static ASMPForgeLoader get(String identifier) {
+		return instances.get(identifier);
 	}
 
 	@Override
 	public String[] getASMTransformerClass() {
-		return new String[] { getClass().getName() };
+		return new String[] { transformer.getName() };
 	}
 
 	@Override

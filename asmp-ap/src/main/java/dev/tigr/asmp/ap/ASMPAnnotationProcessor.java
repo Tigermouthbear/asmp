@@ -49,11 +49,13 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
 
         // mandatory settings
         String input = processingEnvironment.getOptions().get("asmp.input");
+        String inputFormatIn = processingEnvironment.getOptions().get("asmp.input.format");
         String output = processingEnvironment.getOptions().get("asmp.output");
-        if(input == null) throw new ASMPMissingApSetting("asmp.input");
+        String outputFormatIn = processingEnvironment.getOptions().get("asmp.output.format");
+        if(input == null || inputFormatIn == null) throw new ASMPMissingApSetting("asmp.input");
         if(output == null) throw new ASMPMissingApSetting("asmp.output");
-        ObfuscationMapper.Format inputFormat = input.endsWith(".tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG;
-        outputFormat = output.endsWith(".tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG;
+        ObfuscationMapper.Format inputFormat = inputFormatIn.equalsIgnoreCase("tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG;
+        outputFormat = outputFormatIn == null ? ObfuscationMapper.Format.SRG : (outputFormatIn.equalsIgnoreCase("tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG);
 
         // optional intermediary settings
         String methods = processingEnvironment.getOptions().get("asmp.intermediary.methods");

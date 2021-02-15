@@ -37,7 +37,7 @@ public class ASMP {
 		this.identifier = identifier;
 		this.obfuscationMapper = obfuscationMapper;
 
-		LOGGER.info("Starting ASMP with id " + identifier);
+		LOGGER.info("Starting ASMP with ID: " + identifier);
 	}
 
 	public void register(Class<?>... clazzes) {
@@ -113,5 +113,9 @@ public class ASMP {
 
 	public IObfuscationMapper getObfuscationMapper() {
 		return obfuscationMapper;
+	}
+
+	public String getIdentifier() {
+		return identifier;
 	}
 }
