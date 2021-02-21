@@ -1,9 +1,6 @@
 package dev.tigr.asmp.obfuscation;
 
-import java.util.Collection;
-import java.util.Hashtable;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * a map with bidirectional

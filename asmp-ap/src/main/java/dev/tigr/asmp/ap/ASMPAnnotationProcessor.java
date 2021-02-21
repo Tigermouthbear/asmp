@@ -5,18 +5,14 @@ import dev.tigr.asmp.annotations.Patch;
 import dev.tigr.asmp.annotations.modifications.Inject;
 import dev.tigr.asmp.annotations.modifications.Modify;
 import dev.tigr.asmp.exceptions.ASMPMissingApSetting;
-import dev.tigr.asmp.obfuscation.CsvNameMapper;
-import dev.tigr.asmp.obfuscation.ObfuscationMap;
 import dev.tigr.asmp.obfuscation.ObfuscationMapper;
 
 import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
-import javax.tools.Diagnostic;
 import java.io.File;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -24,24 +20,30 @@ import java.util.Set;
  * @author Tigermouthbear 2/12/21
  */
 @SupportedAnnotationTypes({
-    "dev.tigr.asmp.annotations.Patch",
-    "dev.tigr.asmp.annotations.Inject",
-    "dev.tigr.asmp.annotations.Modify"
+        "dev.tigr.asmp.annotations.Patch",
+        "dev.tigr.asmp.annotations.Inject",
+        "dev.tigr.asmp.annotations.Modify"
+})
+@SupportedOptions({
+        "asmp.input",
+        "asmp.input.format",
+        "asmp.output",
+        "asmp.output.format",
+        "asmp.intermediary.input",
+        "asmp.intermediary.input.format",
+        "asmp.intermediary.output",
+        "asmp.intermediary.output.format"
 })
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 public class ASMPAnnotationProcessor extends AbstractProcessor {
-    private final CsvNameMapper csvNameMapper = new CsvNameMapper();
     private final ObfuscationMapper obfuscationMapper = new ObfuscationMapper();
-    private final ObfuscationMapper inputObfuscationMapper = new ObfuscationMapper();
     private final ObfuscationMapper outputObfuscationMapper = new ObfuscationMapper();
+    private final ObfuscationMapper intermediaryObfuscationMapper = new ObfuscationMapper();
     private ObfuscationMapper.Format outputFormat;
     private File outputFile;
-
-    // if there are intermediary csv mappings to use
     private boolean intermediary;
-    // whether to save these intermediaries
-    private boolean saveIntermediary;
-    private File intermediaryOutputFile;
+    private ObfuscationMapper.Format intermediaryOutputFormat;
+    private File intermediaryOutputFile = null;
 
     @Override
     public void init(ProcessingEnvironment processingEnvironment) {
@@ -54,16 +56,37 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         String outputFormatIn = processingEnvironment.getOptions().get("asmp.output.format");
         if(input == null || inputFormatIn == null) throw new ASMPMissingApSetting("asmp.input");
         if(output == null) throw new ASMPMissingApSetting("asmp.output");
-        ObfuscationMapper.Format inputFormat = inputFormatIn.equalsIgnoreCase("tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG;
-        outputFormat = outputFormatIn == null ? ObfuscationMapper.Format.SRG : (outputFormatIn.equalsIgnoreCase("tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG);
+        ObfuscationMapper.Format inputFormat = getFormat(inputFormatIn);
+        outputFormat =  getFormat(outputFormatIn);
 
         // optional intermediary settings
-        String methods = processingEnvironment.getOptions().get("asmp.intermediary.methods");
-        String fields = processingEnvironment.getOptions().get("asmp.intermediary.fields");
+        String intermediaryInput = processingEnvironment.getOptions().get("asmp.intermediary.input");
+        String intermediaryInputFormatIn = processingEnvironment.getOptions().get("asmp.intermediary.input.format");
         String intermediaryOutput = processingEnvironment.getOptions().get("asmp.intermediary.output");
-        if(methods != null || fields != null) intermediary = true;
+        String intermediaryOutputFormatIn = processingEnvironment.getOptions().get("asmp.intermediary.output.format");
+        ObfuscationMapper.Format intermediaryInputFormat = getFormat(intermediaryInputFormatIn);
+        intermediaryOutputFormat = getFormat(intermediaryOutputFormatIn);
+
+        // find input and output files
+        File inputFile = new File(input);
+        if(!inputFile.exists()) throw new RuntimeException("ASMP mapping input file not found! " + inputFile.getAbsolutePath());
+        outputFile = new File(output);
+        if(!outputFile.exists()) {
+            try {
+                outputFile.createNewFile();
+            } catch(IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        // find intermediary files
+        File intermediaryInputFile = null;
+        if(intermediaryInput != null) {
+            intermediary = true;
+            intermediaryInputFile = new File(intermediaryInput);
+            if(!intermediaryInputFile.exists()) throw new RuntimeException("ASMP intermediary input file not found! " + intermediaryInputFile.getAbsolutePath());
+        }
         if(intermediaryOutput != null) {
-            saveIntermediary = true;
             intermediaryOutputFile = new File(intermediaryOutput);
             if(!intermediaryOutputFile.exists()) {
                 try {
@@ -74,41 +97,23 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
             }
         }
 
-        // find srg input
-        File inputFile = new File(input);
-        if(!inputFile.exists()) throw new RuntimeException("ASMP SRG input file not found!");
-
-        // find output location
-        outputFile = new File(output);
-        if(!outputFile.exists()) {
+        // read intermediaries and change input mappings
+        if(intermediary && intermediaryInputFile != null) {
             try {
-                outputFile.createNewFile();
+                intermediaryObfuscationMapper.read(intermediaryInputFile, intermediaryInputFormat);
             } catch(IOException e) {
                 e.printStackTrace();
             }
-        }
 
-        // read intermediaries
-        if(intermediary) {
-            loadIntermediaryMapper(processingEnvironment, methods);
-            loadIntermediaryMapper(processingEnvironment, fields);
-            inputObfuscationMapper.setNameMapper(csvNameMapper);
+            // join the intermediaries
+            obfuscationMapper.setIntermediaries(intermediaryObfuscationMapper);
         }
 
         // read mappings
         try {
-            inputObfuscationMapper.read(inputFile, inputFormat);
+            obfuscationMapper.read(inputFile, inputFormat);
         } catch(IOException e) {
             e.printStackTrace();
-        }
-        obfuscationMapper.read(inputObfuscationMapper);
-    }
-
-    private void loadIntermediaryMapper(ProcessingEnvironment processingEnvironment, String fields) {
-        if(fields != null) {
-            File file = new File(fields);
-            if(file.exists()) csvNameMapper.read(file);
-            else processingEnvironment.getMessager().printMessage(Diagnostic.Kind.ERROR, "[ASMP] Intermediary file " + fields + " does not exist!");
         }
     }
 
@@ -129,35 +134,10 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         }
 
         // generate intermediary mappings if selected
-        if(saveIntermediary) {
-            ObfuscationMap obfuscationMap = new ObfuscationMap();
-            for(Map.Entry<String, String> entry: outputObfuscationMapper.getClassMap().entrySet()) {
-                obfuscationMap.put(inputObfuscationMapper.getClassMap().getDeobf(entry.getKey()), entry.getValue());
-            }
-            outputObfuscationMapper.getClassMap().clear();
-            outputObfuscationMapper.getClassMap().putAll(obfuscationMap);
-            obfuscationMap.clear();
-
-            for(Map.Entry<String, String> entry: outputObfuscationMapper.getFieldMap().entrySet()) {
-                obfuscationMap.put(inputObfuscationMapper.getFieldMap().getDeobf(entry.getKey()), entry.getValue());
-            }
-            outputObfuscationMapper.getFieldMap().clear();
-            outputObfuscationMapper.getFieldMap().putAll(obfuscationMap);
-            obfuscationMap.clear();
-
-            for(Map.Entry<String, String> entry: outputObfuscationMapper.getMethodMap().entrySet()) {
-                if(entry.getKey().contains("<init>") || entry.getKey().contains("<clinit>")) {
-                    int index = entry.getKey().indexOf(";");
-                    String name = entry.getKey().substring(1, index);
-                    obfuscationMap.put(entry.getKey().replaceFirst(name, inputObfuscationMapper.getClassMap().getDeobf(name)), entry.getValue());
-                } else obfuscationMap.put(inputObfuscationMapper.getMethodMap().getDeobf(entry.getKey()), entry.getValue());
-            }
-            outputObfuscationMapper.getMethodMap().clear();
-            outputObfuscationMapper.getMethodMap().putAll(obfuscationMap);
-            obfuscationMap.clear();
-
+        if(intermediaryOutputFile != null && intermediary) {
             try {
-                outputObfuscationMapper.write(intermediaryOutputFile, outputFormat);
+                outputObfuscationMapper.replaceDeobf(intermediaryObfuscationMapper);
+                outputObfuscationMapper.write(intermediaryOutputFile, intermediaryOutputFormat);
             } catch(IOException e) {
                 e.printStackTrace();
             }
@@ -194,5 +174,9 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
             addAt(modify.at());
             outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(modify.value()).toString(), modify.value());
         }
+    }
+
+    private ObfuscationMapper.Format getFormat(String format) {
+        return format == null ? ObfuscationMapper.Format.SRG : (format.equalsIgnoreCase("tsrg") ? ObfuscationMapper.Format.TSRG : ObfuscationMapper.Format.SRG);
     }
 }

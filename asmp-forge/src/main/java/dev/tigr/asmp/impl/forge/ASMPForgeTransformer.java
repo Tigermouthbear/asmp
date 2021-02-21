@@ -6,7 +6,6 @@ import net.minecraftforge.fml.common.asm.transformers.deobf.FMLDeobfuscatingRema
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 
 /**
  * Minecraft class transformer used to modify classes
@@ -23,7 +22,7 @@ public class ASMPForgeTransformer implements IClassTransformer {
         InputStream mappings = Thread.currentThread().getContextClassLoader().getResourceAsStream("asmp." + asmpForgeLoader.getIdentifier() + "." + (OBFUSCATED ? "notch" : "searge") + ".srg");
         if(mappings == null) throw new RuntimeException("ASMP failed to load mappings!");
         try {
-            ((ObfuscationMapper) asmpForgeLoader.getObfuscationMapper()).read(new InputStreamReader(mappings), ObfuscationMapper.Format.SRG);
+            ((ObfuscationMapper) asmpForgeLoader.getObfuscationMapper()).read(() -> mappings, ObfuscationMapper.Format.SRG);
         } catch(IOException e) {
             e.printStackTrace();
         }

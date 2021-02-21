@@ -8,13 +8,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * Interface for reading and writing to SRG files
  * @author Tigermouthbear 2/11/21
  */
 public class ObfuscationMapper implements IObfuscationMapper {
-    private CsvNameMapper csvNameMapper = null;
+    private ObfuscationMapper intermediaryMapper = null;
     private final ObfuscationMap clazzMap = new ObfuscationMap();
     private final ObfuscationMap methodMap = new ObfuscationMap();
     private final ObfuscationMap fieldMap = new ObfuscationMap();
@@ -22,7 +23,14 @@ public class ObfuscationMapper implements IObfuscationMapper {
     public enum Format { SRG, TSRG }
 
     public void read(File input, Format format) throws IOException {
-        read(new FileReader(input), format);
+        read(() -> {
+            try {
+                return new FileInputStream(input);
+            } catch(FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }, format);
     }
 
     public void read(ObfuscationMapper obfuscationMapper) {
@@ -31,12 +39,8 @@ public class ObfuscationMapper implements IObfuscationMapper {
         fieldMap.putAll(obfuscationMapper.fieldMap);
     }
 
-    public void read(Reader reader, Format format) throws IOException {
-        BufferedReader bufferedReader = new BufferedReader(reader);
-
-        // tsrg vars
-        String lastObf = null; // last obf class name
-        String lastDeobf = null; // last deobf class name
+    public void read(Supplier<InputStream> inputStream, Format format) throws IOException {
+        BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(inputStream.get()));
 
         // read line by line
         for(String line = bufferedReader.readLine(); line != null; line = bufferedReader.readLine()) {
@@ -45,56 +49,59 @@ public class ObfuscationMapper implements IObfuscationMapper {
                     // class
                     String[] split = line.substring(4).split(" ");
                     if(split.length != 2) return;
-                    clazzMap.put(split[0], split[1]);
+                    addClass(split[0], split[1]);
                 }
                 else if(line.startsWith("FD: ")) {
                     // field
                     String[] split = line.substring(4).split(" ");
                     if(split.length != 2) return;
-                    fieldMap.put(readSrgEntry(split[0]), readSrgEntry(split[1]));
+                    addField(readSrgEntry(split[0]), readSrgEntry(split[1]));
                 }
                 else if(line.startsWith("MD: ")) {
                     // method
                     String[] split = line.substring(4).split(" ");
                     if(split.length != 4) return;
-                    String obf = readSrgEntry(split[0]) + split[1];
-                    String deobf = readSrgEntry(split[2]) + split[3];
-                    methodMap.put(obf, deobf);
+                    addMethod(readSrgEntry(split[0]) + split[1], readSrgEntry(split[2]) + split[3]);
                 }
             } else if(format == Format.TSRG) {
+                // first pass find classes
+                if(!line.startsWith("\t")) {
+                    // class
+                    String[] split = line.split(" ");
+                    if(split.length == 2) addClass(split[0], split[1]);
+                }
+            }
+        }
+
+        // go back over and find methods and fields
+        if(format == Format.TSRG) {
+            bufferedReader.close();
+            bufferedReader = new BufferedReader(new InputStreamReader(inputStream.get()));
+
+            // tsrg vars
+            String lastObf = null; // last obf class name
+            String lastDeobf = null; // last deobf class name
+
+            for(String line = bufferedReader.readLine(); line != null; line = bufferedReader.readLine()) {
                 if(line.startsWith("\t") && lastObf != null) {
                     // field or method
                     String[] split = line.substring(1).split(" ");
                     if(split.length == 2) {
                         // field
-                        fieldMap.put(lastObf + remap(split[0]),  lastDeobf + remap(split[1]));
+                        addField(lastObf + split[0],  lastDeobf + split[1]);
                     } else if(split.length == 3) {
                         // method, gonna have to deobf all method descriptions after reading all classes
-                        methodMap.put(lastObf + remap(split[0]) + split[1], lastDeobf + remap(split[2]));
+                        addMethod(lastObf + split[0] + split[1], lastDeobf + split[2] + mapDesc(split[1]));
                     }
                 } else {
                     // class
                     String[] split = line.split(" ");
                     if(split.length == 2) {
-                        lastObf = split[0];
-                        lastDeobf = split[1];
-                        clazzMap.put(lastObf, lastDeobf);
-                        lastObf = "L" + lastObf + ";";
-                        lastDeobf = "L" + lastDeobf + ";";
+                        lastObf = "L" + split[0] + ";";
+                        lastDeobf = "L" + split[1] + ";";
                     }
                 }
             }
-        }
-
-        // go back over and deobf method descriptions if TSRG
-        if(format == Format.TSRG) {
-            ObfuscationMap obfuscationMap = new ObfuscationMap();
-            for(Map.Entry<String, String> entry: methodMap.entrySet()) {
-                int index = entry.getKey().indexOf("(");
-                obfuscationMap.put(entry.getKey(), entry.getValue() + mapDesc(entry.getKey().substring(index)));
-            }
-            methodMap.clear();
-            methodMap.putAll(obfuscationMap);
         }
 
         bufferedReader.close();
@@ -105,17 +112,11 @@ public class ObfuscationMapper implements IObfuscationMapper {
         int index = pair.lastIndexOf("/");
         String clazz = pair.substring(0, index);
         String name = pair.substring(index + 1);
-        name = remap(name);
         return "L" + clazz + ";" + name;
     }
 
-    public void setNameMapper(CsvNameMapper csvNameMapper) {
-        this.csvNameMapper = csvNameMapper;
-    }
-
-    private String remap(String name) {
-        if(csvNameMapper == null) return name;
-        return csvNameMapper.getMappings().getDeobf(name);
+    public void setIntermediaries(ObfuscationMapper intermediaryMapper) {
+        this.intermediaryMapper = intermediaryMapper;
     }
 
     public void write(File output, Format format) throws IOException {
@@ -296,14 +297,17 @@ public class ObfuscationMapper implements IObfuscationMapper {
     }
 
     public void addClass(String obf, String deobf) {
+        if(intermediaryMapper != null) deobf = intermediaryMapper.getClassMap().getObf(deobf);
         clazzMap.put(obf, deobf);
     }
 
     public void addField(String obf, String deobf) {
+        if(intermediaryMapper != null) deobf = intermediaryMapper.getFieldMap().getObf(deobf);
         fieldMap.put(obf, deobf);
     }
 
     public void addMethod(String obf, String deobf) {
+        if(intermediaryMapper != null) deobf = intermediaryMapper.getMethodMap().getObf(deobf);
         if(obf.contains("<init>") || obf.contains("<clinit>")) {
             // only add class name and desc classes when initialization block
             String obfOwner = obf.substring(1, obf.indexOf(";"));
@@ -333,6 +337,12 @@ public class ObfuscationMapper implements IObfuscationMapper {
         }
 
         return list;
+    }
+
+    public void replaceDeobf(ObfuscationMapper obfuscationMapper) {
+        clazzMap.replaceAll((obf, deobf) -> obfuscationMapper.getClassMap().getDeobf(deobf));
+        fieldMap.replaceAll((obf, deobf) -> obfuscationMapper.getFieldMap().getDeobf(deobf));
+        methodMap.replaceAll((obf, deobf) -> obfuscationMapper.getMethodMap().getDeobf(deobf));
     }
 
     public ObfuscationMap getClassMap() {

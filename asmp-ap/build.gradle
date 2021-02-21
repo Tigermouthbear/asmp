@@ -8,6 +8,8 @@ buildscript {
 }
 apply plugin: "com.github.johnrengelman.shadow"
 
+version = project.apVersion
+
 dependencies {
     implementation project(":asmp-core")
     shadow project(":asmp-core")
@@ -18,3 +20,13 @@ shadowJar {
 }
 
 build.dependsOn(shadowJar)
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: mvnDeploy)
+            pom.version = version
+            pom.groupId = project.groupId
+        }
+    }
+}

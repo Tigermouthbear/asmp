@@ -1,3 +1,5 @@
+version = project.forgeVersion
+
 dependencies {
     // asmp
     implementation project(":asmp-core")
