@@ -18,3 +18,13 @@ jar {
     // exclude wrapper stuff
     exclude("net/**")
 }
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: mvnDeploy)
+            pom.version = version
+            pom.groupId = project.groupId
+        }
+    }
+}

@@ -1,0 +1,19 @@
+plugins {
+    id "groovy"
+}
+
+version = project.pluginVersion
+
+dependencies {
+    compile gradleApi()
+}
+
+uploadArchives {
+    repositories {
+        mavenDeployer {
+            repository(url: mvnDeploy)
+            pom.version = version
+            pom.groupId = project.groupId
+        }
+    }
+}
