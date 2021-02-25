@@ -12,14 +12,19 @@ version = project.apVersion
 
 dependencies {
     implementation project(":asmp-core")
-    shadow project(":asmp-core")
 }
 
 shadowJar {
-    configurations = [project.configurations.shadow]
+    dependencies {
+        include(dependency(":asmp-core"))
+    }
 }
 
 build.dependsOn(shadowJar)
+
+artifacts {
+    archives shadowJar
+}
 
 uploadArchives {
     repositories {

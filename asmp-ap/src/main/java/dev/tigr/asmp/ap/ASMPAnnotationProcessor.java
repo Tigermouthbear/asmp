@@ -71,6 +71,8 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         File inputFile = new File(input);
         if(!inputFile.exists()) throw new RuntimeException("ASMP mapping input file not found! " + inputFile.getAbsolutePath());
         outputFile = new File(output);
+        if(!outputFile.getParentFile().exists())
+            outputFile.getParentFile().mkdirs();
         if(!outputFile.exists()) {
             try {
                 outputFile.createNewFile();
@@ -88,6 +90,8 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         }
         if(intermediaryOutput != null) {
             intermediaryOutputFile = new File(intermediaryOutput);
+            if(!intermediaryOutputFile.getParentFile().exists())
+                intermediaryOutputFile.getParentFile().mkdirs();
             if(!intermediaryOutputFile.exists()) {
                 try {
                     intermediaryOutputFile.createNewFile();
