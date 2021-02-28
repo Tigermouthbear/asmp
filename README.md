@@ -1,5 +1,5 @@
 # asmp
-Java class patcher using ASM and compatible with Minecraft Forge
+Java class patcher using ASM and compatible with Minecraft Forge. This is a work in progress, more details on use will be provided after the first release.
 
 ## Todo List
 - Shadow variables
