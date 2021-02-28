@@ -11,6 +11,7 @@ import javax.annotation.processing.*;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
 import java.io.File;
 import java.io.IOException;
 import java.util.Set;
@@ -48,6 +49,8 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
     @Override
     public void init(ProcessingEnvironment processingEnvironment) {
         super.init(processingEnvironment);
+
+        processingEnvironment.getMessager().printMessage(Diagnostic.Kind.NOTE, "Running ASMP annotation processor...");
 
         // mandatory settings
         String input = processingEnvironment.getOptions().get("asmp.input");
