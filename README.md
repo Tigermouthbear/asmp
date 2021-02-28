@@ -7,7 +7,6 @@ Java class patcher using ASM and compatible with Minecraft Forge
 - Redirect
 - Slice targeting
 - Overwrite (easy)
-- Gradle Plugin to automate annotation processing setup
 
 ## Examples patching minecraft (syntax is subject to change)
 ```
