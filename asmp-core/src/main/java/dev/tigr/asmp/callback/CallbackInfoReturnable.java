@@ -21,6 +21,7 @@ public class CallbackInfoReturnable<T> {
     }
 
     public void setValue(T value) {
+        cancel();
         this.value = value;
     }
 
