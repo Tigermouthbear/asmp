@@ -106,21 +106,24 @@ public interface IObfuscationMapper {
      */
     default String unmapDesc(String desc) {
         boolean looking = false;
+        StringBuilder sb = new StringBuilder();
         StringBuilder curr = new StringBuilder();
 
         for(char c: desc.toCharArray()) {
             if(!looking) {
                 if(c == 'L') looking = true;
+                sb.append(c);
             } else {
                 if(c == ';') {
-                    desc = desc.replace(curr, unmapClass(curr.toString()));
+                    sb.append(unmapClass(curr.toString()));
+                    sb.append(";");
                     curr = new StringBuilder();
                     looking = false;
                 } else curr.append(c);
             }
         }
 
-        return desc;
+        return sb.toString();
     }
 
     /**
@@ -130,20 +133,23 @@ public interface IObfuscationMapper {
      */
     default String mapDesc(String desc) {
         boolean looking = false;
+        StringBuilder sb = new StringBuilder();
         StringBuilder curr = new StringBuilder();
 
         for(char c: desc.toCharArray()) {
             if(!looking) {
                 if(c == 'L') looking = true;
+                sb.append(c);
             } else {
                 if(c == ';') {
-                    desc = desc.replace(curr, mapClass(curr.toString()));
+                    sb.append(mapClass(curr.toString()));
+                    sb.append(";");
                     curr = new StringBuilder();
                     looking = false;
                 } else curr.append(c);
             }
         }
 
-        return desc;
+        return sb.toString();
     }
 }
