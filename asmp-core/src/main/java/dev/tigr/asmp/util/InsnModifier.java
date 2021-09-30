@@ -99,6 +99,13 @@ public class InsnModifier {
         });
     }
 
+    public void replace(AbstractInsnNode abstractInsnNode) {
+        nodes.forEach(target -> {
+            methodNode.instructions.insert(target, abstractInsnNode);
+            methodNode.instructions.remove(target);
+        });
+    }
+
     public MethodNode getMethodNode() {
         return methodNode;
     }

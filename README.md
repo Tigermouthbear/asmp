@@ -8,6 +8,105 @@ Java class patcher using ASM and compatible with Minecraft Forge. This is a work
 - Slice targeting
 - Overwrite (easy)
 
+## Using (Snapshot) with forgegradle
+### First add the maven repo
+```
+maven {
+    name = "tigr.dev"
+    url = "https://maven.tigr.dev"
+}
+```
+
+### Next apply plugin
+```
+buildscript {
+    repositories {
+        jcenter()
+        maven {
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
+        maven {
+            name = "tigr.dev"
+            url = "https://maven.tigr.dev"
+        }
+    }
+    dependencies {
+        classpath "net.minecraftforge.gradle:ForgeGradle:3+"
+        classpath "dev.tigr.asmp:asmp-plugin:0.1-SNAPSHOT"
+    }
+}
+apply plugin: "net.minecraftforge.gradle"
+apply plugin: "dev.tigr.asmp"
+```
+
+### Then configure the plugin
+```
+asmp {
+    input = "${buildDir.path}/extractSrg/output.srg"
+    inputFormat = "TSRG"
+    intermediaryInput = "${buildDir.path}/createMcpToSrg/output.tsrg"
+    intermediaryInputFormat = "TSRG"
+    mappingsName = "asmp.modid.notch.srg"
+    intermediaryMappingsName = "asmp.modid.searge.srg"
+    tasks = ["shadowJar"] // list of jar tasks to add mappings to (I use shadowjar)
+}
+```
+
+### Then add the dependencies
+```
+dependencies {
+    implementation "dev.tigr.asmp:asmp-core:0.1-SNAPSHOT"
+    implementation "dev.tigr.asmp:asmp-forge:0.1-SNAPSHOT"
+    annotationProcessor "dev.tigr.asmp:asmp-ap:0.1-SNAPSHOT"
+}
+```
+
+### Then add a Loading Plugin
+```
+@IFMLLoadingPlugin.MCVersion("1.12.2")
+public class ASMPLoader extends ASMPForgeLoader {
+    public ASMPLoader() {
+        super("modid", Transformer.class);
+        register(ExamplePatch.class);
+    }
+
+    public static class Transformer extends ASMPForgeTransformer {
+        public Transformer() {
+            super(ASMPForgeLoader.get("modid"));
+        }
+    }
+}
+```
+
+### Then add a patch (make sure its registered in the loading plugin)
+```
+@Patch("net.minecraft.entity.EntityLivingBase")
+public class ExamplePatch {
+    // makes it so entities can't heal
+    @Inject(method = "Lnet/minecraft/entity/EntityLivingBase;heal(F)V", at = @At("HEAD"))
+    public void patch1(CallbackInfo ci) {
+        ci.cancel();
+    }
+}
+```
+
+### Add loading plugin class to jar manifest
+```
+jar {
+    manifest {
+        attributes(
+                "FMLCorePluginContainsFMLMod": "true",
+                "FMLCorePlugin": "com.example.ASMPLoader",
+                "ForceLoadAsMod": "true"
+        )
+    }
+}
+```
+
+### You should be all set!
+For a working example (with mixin integration too), see https://github.com/AresClient/ares/tree/asmp/ares-forge
+
 ## Examples patching minecraft (syntax is subject to change)
 ```
 @Patch("net.minecraft.entity.EntityLivingBase")

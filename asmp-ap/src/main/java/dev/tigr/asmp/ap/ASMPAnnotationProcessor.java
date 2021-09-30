@@ -4,6 +4,8 @@ import dev.tigr.asmp.annotations.At;
 import dev.tigr.asmp.annotations.Patch;
 import dev.tigr.asmp.annotations.modifications.Inject;
 import dev.tigr.asmp.annotations.modifications.Modify;
+import dev.tigr.asmp.annotations.modifications.Overwrite;
+import dev.tigr.asmp.annotations.modifications.Redirect;
 import dev.tigr.asmp.exceptions.ASMPMissingApSetting;
 import dev.tigr.asmp.obfuscation.ObfuscationMapper;
 
@@ -132,6 +134,8 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         addPatches(roundEnvironment);
         addInject(roundEnvironment);
         addModify(roundEnvironment);
+        addOverwrite(roundEnvironment);
+        addRedirect(roundEnvironment);
 
         // save srg
         try {
@@ -180,6 +184,21 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
             if(modify.value().isEmpty()) continue;
             addAt(modify.at());
             outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(modify.value()).toString(), modify.value());
+        }
+    }
+
+    private void addOverwrite(RoundEnvironment roundEnvironment) {
+        for(Element element: roundEnvironment.getElementsAnnotatedWith(Overwrite.class)) {
+            Overwrite overwrite = element.getAnnotation(Overwrite.class);
+            outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(overwrite.value()).toString(), overwrite.value());
+        }
+    }
+
+    private void addRedirect(RoundEnvironment roundEnvironment) {
+        for(Element element: roundEnvironment.getElementsAnnotatedWith(Redirect.class)) {
+            Redirect redirect = element.getAnnotation(Redirect.class);
+            addAt(redirect.at());
+            outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(redirect.method()).toString(), redirect.method());
         }
     }
 
