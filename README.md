@@ -9,6 +9,9 @@ Java class patcher using ASM and compatible with Minecraft Forge. This is a work
 - Overwrite (easy)
 
 ## Using (Snapshot) with forgegradle
+
+Note: the ASMP gradle plugin only works with gradle versions 5.0 or newer
+
 ### First add the maven repo
 ```
 maven {
