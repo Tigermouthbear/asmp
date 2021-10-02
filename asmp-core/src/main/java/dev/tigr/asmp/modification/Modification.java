@@ -4,16 +4,14 @@ import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.obfuscation.IObfuscationMapper;
 import dev.tigr.asmp.util.Reference;
 import org.objectweb.asm.tree.ClassNode;
-
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
+import org.objectweb.asm.tree.MethodNode;
 
 /**
  * Used to create custom patch types and match annotations to them
  * @param <T> Annotation which holds a {@link Modificate} annotation and corresponds to this modification
  * @author Tigermouthbear 7/31/20
  */
-public abstract class Modification<T extends Annotation> {
+public abstract class Modification<T> {
     /**
      * Stores the {@link ASMP} instance this modification is linked to
      */
@@ -30,12 +28,25 @@ public abstract class Modification<T extends Annotation> {
     }
 
     /**
-     * Called when the {@link ClassNode} is patched, the corresponding method should be invoked in this method
+     * Called when the {@link ClassNode} is patched, all modifications are handled here
+     * @param patchClassName class name of the patch class being run - owner of {@param methodNode}
      * @param classNode {@link ClassNode} being patched
-     * @param patch the object which holds the patching method
-     * @param method the method that has the annotation and should be invoked during this method
+     * @param methodNode the method node containing the instructions for the patch
+     * @param generatedObject an object generated with all methods that need to be run at transformation time (check {@link dev.tigr.asmp.modification.modifications.ModifyModification}
      */
-    public abstract void invoke(ClassNode classNode, Object patch, Method method);
+    public void invoke(String patchClassName, ClassNode classNode, MethodNode methodNode, Object generatedObject) {
+        invoke(patchClassName, classNode, methodNode);
+    }
+
+    /**
+     * Called when the {@link ClassNode} is patched, all modifications are handled here
+     * @param patchClassName class name of the patch class being run - owner of {@param methodNode}
+     * @param classNode {@link ClassNode} being patched
+     * @param methodNode the method node containing the instructions for the patch
+     */
+    public void invoke(String patchClassName, ClassNode classNode, MethodNode methodNode) {
+    }
+
 
     /**
      * Unmaps name of the class using the current {@link dev.tigr.asmp.obfuscation.IObfuscationMapper}

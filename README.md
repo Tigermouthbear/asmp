@@ -2,11 +2,10 @@
 Java class patcher using ASM and compatible with Minecraft Forge. This is a work in progress, more details on use will be provided after the first release.
 
 ## Todo List
+- Fix @Modify failing to find method
 - Shadow variables
 - FIELD @At targeting
-- Redirect
 - Slice targeting
-- Overwrite (easy)
 
 ## Using (Snapshot) with forgegradle
 ### First add the maven repo
@@ -33,7 +32,7 @@ buildscript {
     }
     dependencies {
         classpath "net.minecraftforge.gradle:ForgeGradle:3+"
-        classpath "dev.tigr.asmp:asmp-plugin:0.1-SNAPSHOT"
+        classpath "dev.tigr.asmp:asmp-plugin:0.1"
     }
 }
 apply plugin: "net.minecraftforge.gradle"
@@ -56,9 +55,9 @@ asmp {
 ### Then add the dependencies
 ```
 dependencies {
-    implementation "dev.tigr.asmp:asmp-core:0.1-SNAPSHOT"
-    implementation "dev.tigr.asmp:asmp-forge:0.1-SNAPSHOT"
-    annotationProcessor "dev.tigr.asmp:asmp-ap:0.1-SNAPSHOT"
+    implementation "dev.tigr.asmp:asmp-core:0.1"
+    implementation "dev.tigr.asmp:asmp-forge:0.1"
+    annotationProcessor "dev.tigr.asmp:asmp-ap:0.1"
 }
 ```
 

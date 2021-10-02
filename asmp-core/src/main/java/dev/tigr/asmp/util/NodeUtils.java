@@ -15,8 +15,12 @@ import java.io.StringWriter;
 import java.lang.reflect.Method;
 
 public class NodeUtils {
-    public static ClassNode readClassNode(Object object) {
-        return readClassNode(object.getClass());
+    public static Method getMethod(Class<?> clazz, String name, String desc) {
+        for(Method method: clazz.getDeclaredMethods()) {
+            ASMP.LOGGER.info(method.getName());
+            if(method.getName().equals(name) && Type.getMethodDescriptor(method).equals(desc)) return method;
+        }
+        return null;
     }
 
     public static ClassNode readClassNode(Class<?> clazz) {
@@ -33,15 +37,6 @@ public class NodeUtils {
         ClassNode classNode = new ClassNode();
         classReader.accept(classNode, 0);
         return classNode;
-    }
-
-    public static MethodNode readMethodNode(Object object, Method method) {
-        return readMethodNode(object.getClass(), method);
-    }
-
-    public static MethodNode readMethodNode(Class<?> clazz, Method method) {
-        ClassNode classNode = readClassNode(clazz);
-        return getMethod(classNode, new Reference(classNode.name, method.getName(), Type.getMethodDescriptor(method)));
     }
 
     public static MethodNode getMethod(ClassNode classNode, Reference reference) {
@@ -195,6 +190,6 @@ public class NodeUtils {
         return sw.toString();
     }
 
-    private static Printer printer = new Textifier();
-    private static TraceMethodVisitor mp = new TraceMethodVisitor(printer);
+    private static final Printer printer = new Textifier();
+    private static final TraceMethodVisitor mp = new TraceMethodVisitor(printer);
 }

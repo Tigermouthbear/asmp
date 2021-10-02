@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * @author Tigermouthbear 3/17/21
+ * @author Tigermouthbear 10/1/21
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Overwrite {
+public @interface Getter {
     String value();
 }

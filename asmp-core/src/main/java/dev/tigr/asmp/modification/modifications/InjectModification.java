@@ -1,7 +1,7 @@
 package dev.tigr.asmp.modification.modifications;
 
 import dev.tigr.asmp.ASMP;
-import dev.tigr.asmp.annotations.modifications.Inject;
+import dev.tigr.asmp.annotations.Annotations;
 import dev.tigr.asmp.callback.CallbackInfo;
 import dev.tigr.asmp.callback.CallbackInfoReturnable;
 import dev.tigr.asmp.exceptions.ASMPBadArgumentsException;
@@ -14,50 +14,49 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.*;
 
-import java.lang.reflect.Method;
 
 /**
  * @author Tigermouthbear 8/1/20
  */
-public class InjectModification extends Modification<Inject> {
-    public InjectModification(ASMP asmp, Inject annotation) {
+public class InjectModification extends Modification<Annotations.Inject> {
+    public InjectModification(ASMP asmp, Annotations.Inject annotation) {
         super(asmp, annotation);
     }
 
     @Override
-    public void invoke(ClassNode classNode, Object patch, Method method) {
+    public void invoke(String patchClassName, ClassNode classNode, MethodNode injection) {
         // add/copy injection to class
-        MethodNode injection = NodeUtils.readMethodNode(patch, method);
         injection.access = Opcodes.ACC_PRIVATE;
         injection.name = injection.name + "_asmp_injection" + classNode.methods.size(); // unique name
         classNode.methods.add(injection);
 
         // find method node
-        MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(annotation.method()));
+        MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(annotation.getMethod()));
         if(methodNode != null) {
             // general info about method node and injections
-            String target = annotation.at().value();
+            String target = annotation.getAt().getValue();
             Type[] argumentTypes = Type.getArgumentTypes(methodNode.desc);
             Type returnType = Type.getReturnType(methodNode.desc);
 
             // make sure it has callback and they are correct
-            boolean returnable = method.getParameterTypes()[0] == CallbackInfoReturnable.class;
-            boolean regular = method.getParameterTypes()[0] == CallbackInfo.class;
+            Type[] methodParameters = Type.getArgumentTypes(injection.desc);
+            boolean returnable = methodParameters[0].getClassName().equals(CallbackInfoReturnable.class.getName());
+            boolean regular = methodParameters[0].getClassName().equals(CallbackInfo.class.getName());
             boolean isVoid = returnType == Type.VOID_TYPE;
             if(!(regular || returnable) && !(isVoid && target.equals("HEAD")))
-                throw new ASMPMissingCallbackException(patch.getClass().getName(), method.getName());
+                throw new ASMPMissingCallbackException(patchClassName, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
 
             // create inject node and find locations to inject
             MethodInsnNode injectNode = new MethodInsnNode(Opcodes.INVOKEVIRTUAL, classNode.name, injection.name, injection.desc);
-            InsnModifier insnModifier = new InsnModifier(asmp, classNode, methodNode, annotation.at());
+            InsnModifier insnModifier = new InsnModifier(asmp, classNode, methodNode, annotation.getAt());
 
             // see if it has method arguments and compile load arguments insns
             InsnList argInsns = new InsnList();
-            if(method.getParameterTypes().length == argumentTypes.length + 1) {
-                for(int i = 1; i < method.getParameterTypes().length; i++)
+            if(methodParameters.length == argumentTypes.length + 1) {
+                for(int i = 1; i < methodParameters.length; i++)
                     argInsns.add(new VarInsnNode(argumentTypes[i-1].getOpcode(Opcodes.ILOAD), i));
-            } else if(method.getParameterTypes().length != 1) {
-                throw new ASMPBadArgumentsException(patch.getClass().getName(), method.getName());
+            } else if(methodParameters.length != 1) {
+                throw new ASMPBadArgumentsException(patchClassName, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
             }
 
             // generate bytecode inserts for loading callback method
@@ -252,6 +251,6 @@ public class InjectModification extends Modification<Inject> {
                 insnModifier.insertBefore(injectNode);
                 insnModifier.insertBefore(postList);
             }
-        } else throw new ASMPMethodNotFoundException(patch.getClass().getName(), method.getName());
+        } else throw new ASMPMethodNotFoundException(patchClassName, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
     }
 }

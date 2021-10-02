@@ -1,10 +1,11 @@
 package dev.tigr.asmp.util;
 
 import dev.tigr.asmp.ASMP;
+import dev.tigr.asmp.annotations.Annotations;
 import dev.tigr.asmp.annotations.At;
+import dev.tigr.asmp.exceptions.ASMPBadOrdinalException;
 import org.objectweb.asm.tree.*;
 
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,19 +14,15 @@ import java.util.List;
  * @author Tigermouthbear 2/10/21
  */
 public class InsnModifier {
-    private final ASMP asmp;
-    private final ClassNode classNode;
     private final MethodNode methodNode;
     private final List<AbstractInsnNode> nodes = new ArrayList<>();
     private final Reference reference;
 
-    public InsnModifier(ASMP asmp, ClassNode classNode, MethodNode methodNode, At at) {
-        this.asmp = asmp;
-        this.classNode = classNode;
+    public InsnModifier(ASMP asmp, ClassNode classNode, MethodNode methodNode, Annotations.At at) {
         this.methodNode = methodNode;
-        reference = at.target().isEmpty() ? null : asmp.getObfuscationMapper().unmapMethodReference(at.target());
+        reference = at.getTarget().isEmpty() ? null : asmp.getObfuscationMapper().unmapMethodReference(at.getTarget());
 
-        switch(at.value()) {
+        switch(at.getValue()) {
             case "HEAD":
                 nodes.add(methodNode.instructions.getFirst());
                 break;
@@ -36,7 +33,7 @@ public class InsnModifier {
                 break;
             case "INVOKE":
                 // find method insns that match target
-                Reference reference = collapseSuperClass(asmp.getObfuscationMapper().unmapMethodReference(at.target()));
+                Reference reference = asmp.getObfuscationMapper().unmapMethodReference(at.getTarget());
                 for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
                     if(abstractInsnNode instanceof MethodInsnNode) {
                         MethodInsnNode methodInsnNode = (MethodInsnNode) abstractInsnNode;
@@ -47,17 +44,36 @@ public class InsnModifier {
                 }
 
                 // remove if ordinal is not -1
-                if(at.ordinal() != -1) {
-                    AbstractInsnNode abstractInsnNode = nodes.get(at.ordinal());
-                    nodes.clear();
-                    nodes.add(abstractInsnNode);
+                if(at.getOrdinal() != -1) {
+                    if(at.getOrdinal() >= nodes.size()) throw new ASMPBadOrdinalException(classNode.name, methodNode.name);
+                    else {
+                        AbstractInsnNode abstractInsnNode = nodes.get(at.getOrdinal());
+                        nodes.clear();
+                        nodes.add(abstractInsnNode);
+                    }
+                }
+                break;
+            case "FIELD":
+                reference = asmp.getObfuscationMapper().unmapFieldReference(at.getTarget());
+                for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
+                    if(abstractInsnNode instanceof FieldInsnNode) {
+                        FieldInsnNode fieldInsnNode = (FieldInsnNode) abstractInsnNode;
+                        if(fieldInsnNode.owner.equals(reference.getOwner()) && fieldInsnNode.name.equals(reference.getName()))
+                            nodes.add(abstractInsnNode);
+                    }
+                }
+
+                // remove if ordinal is not -1
+                if(at.getOrdinal() != -1) {
+                    if(at.getOrdinal() >= nodes.size()) throw new ASMPBadOrdinalException(classNode.name, methodNode.name);
+                    else {
+                        AbstractInsnNode abstractInsnNode = nodes.get(at.getOrdinal());
+                        nodes.clear();
+                        nodes.add(abstractInsnNode);
+                    }
                 }
                 break;
         }
-    }
-
-    private Reference collapseSuperClass(Reference reference) {
-        return reference;
     }
 
     public void insertBefore(AbstractInsnNode abstractInsnNode) {

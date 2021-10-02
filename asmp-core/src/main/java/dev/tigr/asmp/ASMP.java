@@ -1,21 +1,22 @@
 package dev.tigr.asmp;
 
+import dev.tigr.asmp.annotations.Annotations;
 import dev.tigr.asmp.annotations.Patch;
-import dev.tigr.asmp.modification.Modificate;
-import dev.tigr.asmp.modification.Modification;
+import dev.tigr.asmp.modification.modifications.*;
 import dev.tigr.asmp.obfuscation.IObfuscationMapper;
 import dev.tigr.asmp.obfuscation.NoObfuscationMapper;
+import dev.tigr.asmp.util.ASMPClassLoader;
+import dev.tigr.asmp.util.NodeUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.*;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,8 +25,10 @@ import java.util.Map;
  */
 public class ASMP {
 	public static final Logger LOGGER = LogManager.getLogger("ASMP");
+	private static final ASMPClassLoader CLASS_LOADER = new ASMPClassLoader(ClassLoader.getSystemClassLoader());
 
-	private final Map<String, Class<?>> patches = new HashMap<>();
+	private final Map<String, List<Class<?>>> patches = new HashMap<>();
+	private final Map<String, List<Class<?>>> accessors = new HashMap<>();
 	protected final String identifier;
 	protected IObfuscationMapper obfuscationMapper;
 
@@ -47,69 +50,131 @@ public class ASMP {
 	public void register(Class<?> clazz) {
 		Patch patch = clazz.getAnnotation(Patch.class);
 		if(patch != null) {
-			// get class name
-			patches.put(getObfuscationMapper().unmapClass(patch.value()), clazz);
+			if(clazz.isInterface()) accessors.computeIfAbsent(getObfuscationMapper().unmapClass(patch.value()), k -> new ArrayList<>()).add(clazz);
+			else patches.computeIfAbsent(getObfuscationMapper().unmapClass(patch.value()), k -> new ArrayList<>()).add(clazz);
 		}
 		else LOGGER.error("[" + identifier + "] Failed to add patch " + clazz.getName() + ", Patch annotation missing");
 	}
 
 	public byte[] transform(String name, byte[] bytes) {
-		if(!patches.containsKey(name)) return bytes;
+		if(!patches.containsKey(name) && !accessors.containsKey(name)) return bytes;
 
-		// read class
+		/// read class
 		ClassReader classReader = new ClassReader(bytes);
 		ClassNode classNode = new ClassNode();
 		classReader.accept(classNode, ClassReader.EXPAND_FRAMES);
 
-		// patch the classnode
-		try {
-			Class<?> patchClass = patches.get(name);
+		if(patches.containsKey(name)) {
+			// patch the classnode
+			List<Class<?>> patchClasses = patches.get(name);
 
-			// create new instance of patch
-			Object patch;
-			Constructor<?> constructor;
-			try {
-				constructor = patchClass.getConstructor();
-				patch = constructor.newInstance();
-			} catch(NoSuchMethodException e) {
-				e.printStackTrace();
-				return bytes; // fail
-			}
+			for(Class<?> patchClass: patchClasses) {
+				ClassNode patchNode = NodeUtils.readClassNode(patchClass);
 
-			// find the modifications and run them
-			for(Method method: patchClass.getMethods()) {
-				for(Annotation annotation: method.getAnnotations()) {
-					Modificate modificate = annotation.annotationType().getAnnotation(Modificate.class);
-					if(modificate != null) {
-						Modification<?> modification = modificate.value().getConstructor(ASMP.class, annotation.annotationType()).newInstance(this, annotation);
-						modification.invoke(classNode, patch, method);
+				// make generated node and add all methods which need to be called at transform time (Modify patches)
+				ClassNode generatedNode = null;
+				for(MethodNode methodNode: patchNode.methods) {
+					if(methodNode.visibleAnnotations == null) continue;
+					for(AnnotationNode annotationNode: methodNode.visibleAnnotations) {
+						if(annotationNode.desc.equals("Ldev/tigr/asmp/annotations/modifications/Modify;")) {
+							if(generatedNode == null) {
+								generatedNode = new ClassNode();
+								generatedNode.version = Opcodes.V1_8; // TODO: MAKE THIS CONFIGURABLE
+								generatedNode.access = Opcodes.ACC_PUBLIC;
+								generatedNode.name = "dev/tigr/asmp/generated/" + patchClass.getSimpleName();
+								generatedNode.superName = "java/lang/Object";
+
+								MethodNode init = new MethodNode(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+								init.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
+								init.instructions.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false));
+								init.instructions.add(new InsnNode(Opcodes.RETURN));
+								generatedNode.methods.add(init);
+							}
+							generatedNode.methods.add(methodNode);
+							break;
+						}
+					}
+				}
+
+				// load generated node into classpath
+				Object generated = null;
+				if(generatedNode != null) {
+					Class<?> clazz = CLASS_LOADER.defineClass(generatedNode);
+					try {
+						generated = clazz.newInstance();
+					} catch(InstantiationException | IllegalAccessException e) {
+						e.printStackTrace();
+					}
+				}
+
+				// find the modifications and run them
+				for(MethodNode methodNode: patchNode.methods) {
+					if(methodNode.visibleAnnotations == null) continue;
+					label:
+					for(AnnotationNode annotationNode: methodNode.visibleAnnotations) {
+						switch(annotationNode.desc) {
+							case "Ldev/tigr/asmp/annotations/modifications/Inject;":
+								InjectModification injectModification = new InjectModification(this, Annotations.readInject(annotationNode));
+								injectModification.invoke(patchNode.name, classNode, methodNode);
+								break label;
+							case "Ldev/tigr/asmp/annotations/modifications/Modify;":
+								if(generated != null) {
+									ModifyModification modifyModification = new ModifyModification(this, Annotations.readModify(annotationNode));
+									modifyModification.invoke(patchNode.name, classNode, methodNode, generated);
+								}
+								break label;
+							case "Ldev/tigr/asmp/annotations/modifications/Overwrite;":
+								OverwriteModification overwriteModification = new OverwriteModification(this, Annotations.readOverwrite(annotationNode));
+								overwriteModification.invoke(patchNode.name, classNode, methodNode);
+								break label;
+							case "Ldev/tigr/asmp/annotations/modifications/Redirect;":
+								RedirectModification redirectModification = new RedirectModification(this, Annotations.readRedirect(annotationNode));
+								redirectModification.invoke(patchNode.name, classNode, methodNode);
+								break label;
+						}
 					}
 				}
 			}
-
-			//TODO: Make this error messages better
-		} catch(InstantiationException e) {
-			LOGGER.error("[" + identifier + "] Failed to transform class " + name + "! InstantiationException");
-			e.printStackTrace();
-			return bytes;
-		} catch(InvocationTargetException e) {
-			LOGGER.error("[" + identifier + "] Failed to transform class " + name + "! InvocationTargetException");
-			e.printStackTrace();
-			return bytes;
-		} catch(IllegalAccessException e) {
-			LOGGER.error("[" + identifier + "] Failed to transform class " + name + "! IllegalAccessException");
-			e.printStackTrace();
-			return bytes;
-		} catch (NoSuchMethodException e) {
-			e.printStackTrace();
 		}
 
-		// write classnode to classwriter
+		if(accessors.containsKey(name)) {
+			// patch the classnode
+			List<Class<?>> accessorClasses = accessors.get(name);
+
+			for(Class<?> accessorClass: accessorClasses) {
+				ClassNode accessorNode = NodeUtils.readClassNode(accessorClass);
+
+				// find the modifications and run them
+				for(MethodNode methodNode: accessorNode.methods) {
+					if(methodNode.visibleAnnotations == null) continue;
+					label:
+					for(AnnotationNode annotationNode: methodNode.visibleAnnotations) {
+						switch(annotationNode.desc) {
+							case "Ldev/tigr/asmp/annotations/modifications/Accessor;":
+								GetterModification getterModification = new GetterModification(this, Annotations.readGetter(annotationNode));
+								getterModification.invoke(accessorNode.name, classNode, methodNode);
+								break label;
+							case "Ldev/tigr/asmp/annotations/modifications/Setter;":
+								SetterModification setterModification = new SetterModification(this, Annotations.readSetter(annotationNode));
+								setterModification.invoke(accessorNode.name, classNode, methodNode);
+								break label;
+							case "Ldev/tigr/asmp/annotations/modifications/Invoker;":
+								InvokerModification invokerModification = new InvokerModification(this, Annotations.readInvoker(annotationNode));
+								invokerModification.invoke(accessorNode.name, classNode, methodNode);
+								break label;
+						}
+					}
+				}
+			}
+		}
+
+		// write classnode to classwriter and return
 		ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
 		classNode.accept(classWriter);
-
 		return classWriter.toByteArray();
 	}
+
+
 
 	public IObfuscationMapper getObfuscationMapper() {
 		return obfuscationMapper;

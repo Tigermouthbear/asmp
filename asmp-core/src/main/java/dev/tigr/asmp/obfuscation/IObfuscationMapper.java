@@ -28,8 +28,8 @@ public interface IObfuscationMapper {
 
         int index0 = descriptor.indexOf(";");
         String owner = descriptor.substring(1, index0);
-        String name = descriptor.substring(index0);
-        owner = unmapClass(owner);
+        int index1 = descriptor.indexOf(":");
+        String name = index1 < 0 ? descriptor.substring(index0 + 1) : descriptor.substring(index0 + 1, index1);
 
         return new Reference(owner, unmapField(owner, name));
     }
