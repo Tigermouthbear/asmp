@@ -17,7 +17,6 @@ import java.lang.reflect.Method;
 public class NodeUtils {
     public static Method getMethod(Class<?> clazz, String name, String desc) {
         for(Method method: clazz.getDeclaredMethods()) {
-            ASMP.LOGGER.info(method.getName());
             if(method.getName().equals(name) && Type.getMethodDescriptor(method).equals(desc)) return method;
         }
         return null;

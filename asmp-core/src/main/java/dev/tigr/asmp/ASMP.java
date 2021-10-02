@@ -25,7 +25,7 @@ import java.util.Map;
  */
 public class ASMP {
 	public static final Logger LOGGER = LogManager.getLogger("ASMP");
-	private static final ASMPClassLoader CLASS_LOADER = new ASMPClassLoader(ClassLoader.getSystemClassLoader());
+	private static final ASMPClassLoader CLASS_LOADER = new ASMPClassLoader(ASMP.class.getClassLoader());
 
 	private final Map<String, List<Class<?>>> patches = new HashMap<>();
 	private final Map<String, List<Class<?>>> accessors = new HashMap<>();
@@ -99,6 +99,7 @@ public class ASMP {
 				// load generated node into classpath
 				Object generated = null;
 				if(generatedNode != null) {
+					// load actual class
 					Class<?> clazz = CLASS_LOADER.defineClass(generatedNode);
 					try {
 						generated = clazz.newInstance();
@@ -150,7 +151,7 @@ public class ASMP {
 					label:
 					for(AnnotationNode annotationNode: methodNode.visibleAnnotations) {
 						switch(annotationNode.desc) {
-							case "Ldev/tigr/asmp/annotations/modifications/Accessor;":
+							case "Ldev/tigr/asmp/annotations/modifications/Getter;":
 								GetterModification getterModification = new GetterModification(this, Annotations.readGetter(annotationNode));
 								getterModification.invoke(accessorNode.name, classNode, methodNode);
 								break label;
@@ -169,7 +170,7 @@ public class ASMP {
 		}
 
 		// write classnode to classwriter and return
-		ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+		ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
 		classNode.accept(classWriter);
 		return classWriter.toByteArray();
 	}

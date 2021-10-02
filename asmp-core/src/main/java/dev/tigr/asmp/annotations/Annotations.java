@@ -33,7 +33,7 @@ public class Annotations {
 
     public static At readAt(AnnotationNode annotationNode) {
         AnnotationReader annotationReader = new AnnotationReader(annotationNode);
-        return new At((String) annotationReader.getValues().get("value"), (String) annotationReader.getValues().getOrDefault("target", ""), (int) annotationReader.getValues().getOrDefault("ordinal", -1));
+        return new At((String) annotationReader.getValues().getOrDefault("value", "NONE"), (String) annotationReader.getValues().getOrDefault("target", ""), (int) annotationReader.getValues().getOrDefault("ordinal", -1));
     }
 
     public static class Getter {

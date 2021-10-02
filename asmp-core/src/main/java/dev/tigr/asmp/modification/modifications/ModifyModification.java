@@ -7,6 +7,7 @@ import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
 import dev.tigr.asmp.modification.Modification;
 import dev.tigr.asmp.util.InsnModifier;
 import dev.tigr.asmp.util.NodeUtils;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -40,7 +41,7 @@ public class ModifyModification extends Modification<Annotations.Modify> {
                 // we need to find a method node to use from now on
                 MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(input));
                 if(methodNode != null) {
-                    if(target.equals("NONE")) {
+                    if(target.equals("NONE") || target.isEmpty()) {
                         // user just wants raw method node
                         try {
                             method.invoke(generated, methodNode);
@@ -60,6 +61,6 @@ public class ModifyModification extends Modification<Annotations.Modify> {
                     }
                 } else throw new ASMPMethodNotFoundException(patchClazzName, method.getName());
             }
-        } throw new ASMPMethodNotFoundException(patchClazzName, modify.name);
+        } else throw new ASMPMethodNotFoundException(patchClazzName, modify.name);
     }
 }
