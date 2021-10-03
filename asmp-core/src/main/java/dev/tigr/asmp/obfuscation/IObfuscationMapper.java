@@ -26,10 +26,12 @@ public interface IObfuscationMapper {
         boolean valid = descriptor.contains("(") && descriptor.contains(";");
         if(!valid) throw new ASMPBadTargetException(descriptor);
 
-        int index0 = descriptor.indexOf(";");
-        String owner = descriptor.substring(1, index0);
-        int index1 = descriptor.indexOf(":");
-        String name = index1 < 0 ? descriptor.substring(index0 + 1) : descriptor.substring(index0 + 1, index1);
+        int index0 = descriptor.indexOf(":");
+        if(index0 > 0) descriptor = descriptor.substring(0, index0);
+
+        int index1 = descriptor.indexOf(";");
+        String owner = descriptor.substring(1, index1);
+        String name = descriptor.substring(index1 + 1);
 
         return new Reference(owner, unmapField(owner, name));
     }

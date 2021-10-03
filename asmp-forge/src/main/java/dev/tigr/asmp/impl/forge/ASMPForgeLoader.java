@@ -3,6 +3,7 @@ package dev.tigr.asmp.impl.forge;
 import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.obfuscation.ObfuscationMapper;
 import net.minecraftforge.fml.relauncher.IFMLLoadingPlugin;
+import org.objectweb.asm.tree.ClassNode;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -20,6 +21,11 @@ public class ASMPForgeLoader extends ASMP implements IFMLLoadingPlugin {
 		super(identifier, new ObfuscationMapper());
 		this.transformer = transformer;
 		instances.put(identifier, this);
+	}
+
+	@Override
+	public ClassNode transform(String name, ClassNode classNode) {
+		return super.transform(name, classNode);
 	}
 
 	public static ASMPForgeLoader get(String identifier) {

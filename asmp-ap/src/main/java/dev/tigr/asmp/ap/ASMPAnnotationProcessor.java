@@ -2,6 +2,7 @@ package dev.tigr.asmp.ap;
 
 import dev.tigr.asmp.annotations.At;
 import dev.tigr.asmp.annotations.Patch;
+import dev.tigr.asmp.annotations.Shadow;
 import dev.tigr.asmp.annotations.modifications.*;
 import dev.tigr.asmp.exceptions.ASMPMissingApSetting;
 import dev.tigr.asmp.obfuscation.ObfuscationMapper;
@@ -133,9 +134,10 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         addModify(roundEnvironment);
         addOverwrite(roundEnvironment);
         addRedirect(roundEnvironment);
-        addAccessor(roundEnvironment);
+        addGetter(roundEnvironment);
         addSetter(roundEnvironment);
         addInvoker(roundEnvironment);
+        addShadow(roundEnvironment);
 
         // save srg
         try {
@@ -167,6 +169,8 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
     private void addAt(At at) {
         if(at.value().equals("INVOKE")) {
             outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(at.target()).toString(), at.target());
+        } else if(at.value().equals("FIELD")) {
+            outputObfuscationMapper.addField(obfuscationMapper.unmapFieldReference(at.target()).toString(), at.target());
         }
     }
 
@@ -202,7 +206,7 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         }
     }
 
-    private void addAccessor(RoundEnvironment roundEnvironment) {
+    private void addGetter(RoundEnvironment roundEnvironment) {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(Getter.class)) {
             Getter getter = element.getAnnotation(Getter.class);
             outputObfuscationMapper.addField(obfuscationMapper.unmapFieldReference(getter.value()).toString(), getter.value());
@@ -220,6 +224,13 @@ public class ASMPAnnotationProcessor extends AbstractProcessor {
         for(Element element: roundEnvironment.getElementsAnnotatedWith(Invoker.class)) {
             Invoker invoker = element.getAnnotation(Invoker.class);
             outputObfuscationMapper.addMethod(obfuscationMapper.unmapMethodReference(invoker.value()).toString(), invoker.value());
+        }
+    }
+
+    private void addShadow(RoundEnvironment roundEnvironment) {
+        for(Element element: roundEnvironment.getElementsAnnotatedWith(Shadow.class)) {
+            Shadow shadow = element.getAnnotation(Shadow.class);
+            outputObfuscationMapper.addField(obfuscationMapper.unmapFieldReference(shadow.value()).toString(), shadow.value());
         }
     }
 

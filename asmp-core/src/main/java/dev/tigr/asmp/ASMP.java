@@ -56,14 +56,27 @@ public class ASMP {
 		else LOGGER.error("[" + identifier + "] Failed to add patch " + clazz.getName() + ", Patch annotation missing");
 	}
 
-	public byte[] transform(String name, byte[] bytes) {
-		if(!patches.containsKey(name) && !accessors.containsKey(name)) return bytes;
+	public boolean shouldTransform(String name) {
+		return patches.containsKey(name) || accessors.containsKey(name);
+	}
 
-		/// read class
+	public byte[] transform(String name, byte[] bytes) {
+		if(!shouldTransform(name)) return bytes;
+
+		// read class
 		ClassReader classReader = new ClassReader(bytes);
 		ClassNode classNode = new ClassNode();
 		classReader.accept(classNode, ClassReader.EXPAND_FRAMES);
 
+		transform(name, classNode);
+
+		// write classnode to classwriter and return
+		ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+		classNode.accept(classWriter);
+		return classWriter.toByteArray();
+	}
+
+	public ClassNode transform(String name, ClassNode classNode) {
 		if(patches.containsKey(name)) {
 			// patch the classnode
 			List<Class<?>> patchClasses = patches.get(name);
@@ -116,21 +129,21 @@ public class ASMP {
 						switch(annotationNode.desc) {
 							case "Ldev/tigr/asmp/annotations/modifications/Inject;":
 								InjectModification injectModification = new InjectModification(this, Annotations.readInject(annotationNode));
-								injectModification.invoke(patchNode.name, classNode, methodNode);
+								injectModification.invoke(patchNode, classNode, methodNode);
 								break label;
 							case "Ldev/tigr/asmp/annotations/modifications/Modify;":
 								if(generated != null) {
 									ModifyModification modifyModification = new ModifyModification(this, Annotations.readModify(annotationNode));
-									modifyModification.invoke(patchNode.name, classNode, methodNode, generated);
+									modifyModification.invoke(patchNode, classNode, methodNode, generated);
 								}
 								break label;
 							case "Ldev/tigr/asmp/annotations/modifications/Overwrite;":
 								OverwriteModification overwriteModification = new OverwriteModification(this, Annotations.readOverwrite(annotationNode));
-								overwriteModification.invoke(patchNode.name, classNode, methodNode);
+								overwriteModification.invoke(patchNode, classNode, methodNode);
 								break label;
 							case "Ldev/tigr/asmp/annotations/modifications/Redirect;":
 								RedirectModification redirectModification = new RedirectModification(this, Annotations.readRedirect(annotationNode));
-								redirectModification.invoke(patchNode.name, classNode, methodNode);
+								redirectModification.invoke(patchNode, classNode, methodNode);
 								break label;
 						}
 					}
@@ -153,15 +166,15 @@ public class ASMP {
 						switch(annotationNode.desc) {
 							case "Ldev/tigr/asmp/annotations/modifications/Getter;":
 								GetterModification getterModification = new GetterModification(this, Annotations.readGetter(annotationNode));
-								getterModification.invoke(accessorNode.name, classNode, methodNode);
+								getterModification.invoke(accessorNode, classNode, methodNode);
 								break label;
 							case "Ldev/tigr/asmp/annotations/modifications/Setter;":
 								SetterModification setterModification = new SetterModification(this, Annotations.readSetter(annotationNode));
-								setterModification.invoke(accessorNode.name, classNode, methodNode);
+								setterModification.invoke(accessorNode, classNode, methodNode);
 								break label;
 							case "Ldev/tigr/asmp/annotations/modifications/Invoker;":
 								InvokerModification invokerModification = new InvokerModification(this, Annotations.readInvoker(annotationNode));
-								invokerModification.invoke(accessorNode.name, classNode, methodNode);
+								invokerModification.invoke(accessorNode, classNode, methodNode);
 								break label;
 						}
 					}
@@ -169,13 +182,8 @@ public class ASMP {
 			}
 		}
 
-		// write classnode to classwriter and return
-		ClassWriter classWriter = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-		classNode.accept(classWriter);
-		return classWriter.toByteArray();
+		return classNode;
 	}
-
-
 
 	public IObfuscationMapper getObfuscationMapper() {
 		return obfuscationMapper;

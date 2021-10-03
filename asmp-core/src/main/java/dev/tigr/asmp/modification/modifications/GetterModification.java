@@ -19,9 +19,9 @@ public class GetterModification extends Modification<Annotations.Getter> {
     }
 
     @Override
-    public void invoke(String patchClassName, ClassNode classNode, MethodNode methodNode) {
+    public void invoke(ClassNode patchNode, ClassNode classNode, MethodNode methodNode) {
         // first add patch to interfaces
-        if(!classNode.interfaces.contains(patchClassName)) classNode.interfaces.add(patchClassName);
+        if(!classNode.interfaces.contains(patchNode.name)) classNode.interfaces.add(patchNode.name);
 
         // then create invoker method in classNode
         methodNode.access = Opcodes.ACC_PUBLIC;

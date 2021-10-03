@@ -2,13 +2,12 @@ package dev.tigr.asmp.modification;
 
 import dev.tigr.asmp.ASMP;
 import dev.tigr.asmp.obfuscation.IObfuscationMapper;
+import dev.tigr.asmp.util.NodeUtils;
 import dev.tigr.asmp.util.Reference;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.*;
 
 /**
  * Used to create custom patch types and match annotations to them
- * @param <T> Annotation which holds a {@link Modificate} annotation and corresponds to this modification
  * @author Tigermouthbear 7/31/20
  */
 public abstract class Modification<T> {
@@ -29,22 +28,22 @@ public abstract class Modification<T> {
 
     /**
      * Called when the {@link ClassNode} is patched, all modifications are handled here
-     * @param patchClassName class name of the patch class being run - owner of {@param methodNode}
+     * @param patchNode {@link ClassNode} of the patch class being run - owner of {@param methodNode}
      * @param classNode {@link ClassNode} being patched
-     * @param methodNode the method node containing the instructions for the patch
+     * @param methodNode the {@link MethodNode} containing the instructions for the patch
      * @param generatedObject an object generated with all methods that need to be run at transformation time (check {@link dev.tigr.asmp.modification.modifications.ModifyModification}
      */
-    public void invoke(String patchClassName, ClassNode classNode, MethodNode methodNode, Object generatedObject) {
-        invoke(patchClassName, classNode, methodNode);
+    public void invoke(ClassNode patchNode, ClassNode classNode, MethodNode methodNode, Object generatedObject) {
+        invoke(patchNode, classNode, methodNode);
     }
 
     /**
      * Called when the {@link ClassNode} is patched, all modifications are handled here
-     * @param patchClassName class name of the patch class being run - owner of {@param methodNode}
+     * @param patchNode {@link ClassNode} of the patch class being run - owner of {@param methodNode}
      * @param classNode {@link ClassNode} being patched
-     * @param methodNode the method node containing the instructions for the patch
+     * @param methodNode the {@link MethodNode} containing the instructions for the patch
      */
-    public void invoke(String patchClassName, ClassNode classNode, MethodNode methodNode) {
+    public void invoke(ClassNode patchNode, ClassNode classNode, MethodNode methodNode) {
     }
 
 
@@ -103,6 +102,33 @@ public abstract class Modification<T> {
      */
     public Reference unmapMethodReference(String descriptor) {
         return asmp.getObfuscationMapper().unmapMethodReference(descriptor);
+    }
+
+    /**
+     * Replaces all shadowed fields insns to the correct owner
+     * @param patchNode {@link ClassNode} which holds patch data
+     * @param methodNode {@link MethodNode} which shadow fields are being fixed
+     */
+    public void shadowVariables(ClassNode patchNode, MethodNode methodNode) {
+        for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
+            if(abstractInsnNode instanceof FieldInsnNode) {
+                FieldInsnNode fieldInsnNode = (FieldInsnNode) abstractInsnNode;
+                if(fieldInsnNode.owner.equals(patchNode.name)) {
+                    FieldNode fieldNode = NodeUtils.getField(patchNode, fieldInsnNode.name, fieldInsnNode.desc);
+                    if(fieldNode == null) continue;
+                    for(AnnotationNode annotationNode: fieldNode.visibleAnnotations) {
+                        if(annotationNode.desc.equals("Ldev/tigr/asmp/annotations/Shadow;")) {
+                            if(annotationNode.values.get(0).equals("value")) {
+                                Reference reference = unmapFieldReference((String) annotationNode.values.get(1));
+                                fieldInsnNode.owner = reference.getOwner();
+                                fieldInsnNode.name = reference.getName();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /**

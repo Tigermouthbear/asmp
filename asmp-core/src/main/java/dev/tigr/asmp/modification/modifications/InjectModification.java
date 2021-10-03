@@ -24,11 +24,12 @@ public class InjectModification extends Modification<Annotations.Inject> {
     }
 
     @Override
-    public void invoke(String patchClassName, ClassNode classNode, MethodNode injection) {
+    public void invoke(ClassNode patchNode, ClassNode classNode, MethodNode injection) {
         // add/copy injection to class
         injection.access = Opcodes.ACC_PRIVATE;
         injection.name = injection.name + "_asmp_injection" + classNode.methods.size(); // unique name
         classNode.methods.add(injection);
+        shadowVariables(patchNode, injection);
 
         // find method node
         MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(annotation.getMethod()));
@@ -44,7 +45,7 @@ public class InjectModification extends Modification<Annotations.Inject> {
             boolean regular = methodParameters[0].getClassName().equals(CallbackInfo.class.getName());
             boolean isVoid = returnType == Type.VOID_TYPE;
             if(!(regular || returnable) && !(isVoid && target.equals("HEAD")))
-                throw new ASMPMissingCallbackException(patchClassName, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
+                throw new ASMPMissingCallbackException(patchNode.name, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
 
             // create inject node and find locations to inject
             MethodInsnNode injectNode = new MethodInsnNode(Opcodes.INVOKEVIRTUAL, classNode.name, injection.name, injection.desc);
@@ -56,7 +57,7 @@ public class InjectModification extends Modification<Annotations.Inject> {
                 for(int i = 1; i < methodParameters.length; i++)
                     argInsns.add(new VarInsnNode(argumentTypes[i-1].getOpcode(Opcodes.ILOAD), i));
             } else if(methodParameters.length != 1) {
-                throw new ASMPBadArgumentsException(patchClassName, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
+                throw new ASMPBadArgumentsException(patchNode.name, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
             }
 
             // generate bytecode inserts for loading callback method
@@ -64,7 +65,7 @@ public class InjectModification extends Modification<Annotations.Inject> {
             InsnList postList = new InsnList();
             switch(target) {
                 case "HEAD": {
-                    int callbackId = methodNode.maxLocals;
+                    int callbackId = methodNode.maxLocals + 1;
 
                     if(returnable) {
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfoReturnable"));
@@ -111,7 +112,7 @@ public class InjectModification extends Modification<Annotations.Inject> {
                     int loadOp = returnType.getOpcode(Opcodes.ILOAD);
 
                     if(returnable) {
-                        int returnId = methodNode.maxLocals;
+                        int returnId = methodNode.maxLocals + 1;
                         int callbackId = returnId + 1;
 
                         preList.add(new VarInsnNode(storeOp, returnId));
@@ -132,7 +133,7 @@ public class InjectModification extends Modification<Annotations.Inject> {
                         AbstractInsnNode primitiveValueNode = NodeUtils.primitiveValueInsnNode(returnType);
                         if(primitiveValueNode != null) postList.add(primitiveValueNode);
                     } else {
-                        int callbackId = methodNode.maxLocals;
+                        int callbackId = methodNode.maxLocals + 1;
 
                         preList.add(new TypeInsnNode(Opcodes.NEW, "dev/tigr/asmp/callback/CallbackInfo"));
                         preList.add(new InsnNode(Opcodes.DUP));
@@ -149,8 +150,8 @@ public class InjectModification extends Modification<Annotations.Inject> {
                     boolean isTargetVoid = insnModifier.getTargetReference().isVoid();
                     int storeOp = type.getOpcode(Opcodes.ISTORE);
                     int loadOp = type.getOpcode(Opcodes.ILOAD);
-                    int callbackId = methodNode.maxLocals;
-                    int returnId = methodNode.maxLocals + 1;
+                    int callbackId = methodNode.maxLocals + 1;
+                    int returnId = callbackId + 1;
 
                     if(isVoid) {
                         if(isTargetVoid) {
@@ -251,6 +252,6 @@ public class InjectModification extends Modification<Annotations.Inject> {
                 insnModifier.insertBefore(injectNode);
                 insnModifier.insertBefore(postList);
             }
-        } else throw new ASMPMethodNotFoundException(patchClassName, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
+        } else throw new ASMPMethodNotFoundException(patchNode.name, injection.name.replaceAll("_asmp_injection" + classNode.methods.size(), ""));
     }
 }

@@ -14,6 +14,9 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
 
+/**
+ * @author Tigermouthbear
+ */
 public class NodeUtils {
     public static Method getMethod(Class<?> clazz, String name, String desc) {
         for(Method method: clazz.getDeclaredMethods()) {
@@ -45,8 +48,44 @@ public class NodeUtils {
         return null;
     }
 
+    public static FieldNode getField(ClassNode classNode, Reference reference) {
+        if(classNode.name.equals(reference.getOwner())) {
+            for(FieldNode fieldNode: classNode.fields) {
+                if(fieldNode.name.equals(reference.getName())) return fieldNode;
+            }
+        }
+        return null;
+    }
+
+    public static FieldNode getField(ClassNode classNode, String name, String desc) {
+        for(FieldNode fieldNode: classNode.fields) {
+            if(fieldNode.name.equals(name) && fieldNode.desc.equals(desc)) return fieldNode;
+        }
+        return null;
+    }
+
     public static boolean isReturn(AbstractInsnNode abstractInsnNode) {
         return abstractInsnNode.getOpcode() >= Opcodes.IRETURN && abstractInsnNode.getOpcode() <= Opcodes.RETURN;
+    }
+
+    public static boolean isLoad(AbstractInsnNode abstractInsnNode) {
+        return abstractInsnNode.getOpcode() >= Opcodes.ILOAD && abstractInsnNode.getOpcode() <= Opcodes.SALOAD;
+    }
+
+    public static boolean isStore(AbstractInsnNode abstractInsnNode) {
+        return abstractInsnNode.getOpcode() >= Opcodes.ISTORE && abstractInsnNode.getOpcode() <= Opcodes.SASTORE;
+    }
+
+    public static int loadToStore(int load) {
+        if(load >= Opcodes.ILOAD && load <= Opcodes.ALOAD) return load + 23;
+        if(load >= Opcodes.IALOAD && load <= Opcodes.SALOAD) return load + 33;
+        return Opcodes.ASTORE;
+    }
+
+    public static int storeToLoad(int store) {
+        if(store >= Opcodes.ISTORE && store <= Opcodes.ASTORE) return store - 23;
+        if(store >= Opcodes.IASTORE && store <= Opcodes.SASTORE) return store - 33;
+        return Opcodes.ALOAD;
     }
 
     public static AbstractInsnNode valueOfInsnNode(Type type) {

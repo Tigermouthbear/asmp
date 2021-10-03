@@ -20,7 +20,9 @@ public class InsnModifier {
 
     public InsnModifier(ASMP asmp, ClassNode classNode, MethodNode methodNode, Annotations.At at) {
         this.methodNode = methodNode;
-        reference = at.getTarget().isEmpty() ? null : asmp.getObfuscationMapper().unmapMethodReference(at.getTarget());
+        reference = at.getTarget().isEmpty() ? null :
+                (at.getValue().equals("FIELD") ? asmp.getObfuscationMapper().unmapFieldReference(at.getTarget())
+                        : asmp.getObfuscationMapper().unmapMethodReference(at.getTarget()));
 
         switch(at.getValue()) {
             case "HEAD":
@@ -33,7 +35,6 @@ public class InsnModifier {
                 break;
             case "INVOKE":
                 // find method insns that match target
-                Reference reference = asmp.getObfuscationMapper().unmapMethodReference(at.getTarget());
                 for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
                     if(abstractInsnNode instanceof MethodInsnNode) {
                         MethodInsnNode methodInsnNode = (MethodInsnNode) abstractInsnNode;
@@ -45,7 +46,7 @@ public class InsnModifier {
 
                 // remove if ordinal is not -1
                 if(at.getOrdinal() != -1) {
-                    if(at.getOrdinal() >= nodes.size()) throw new ASMPBadOrdinalException(classNode.name, methodNode.name);
+                    if(at.getOrdinal() >= nodes.size()) throw new ASMPBadOrdinalException(classNode.name, methodNode.name, nodes.size());
                     else {
                         AbstractInsnNode abstractInsnNode = nodes.get(at.getOrdinal());
                         nodes.clear();
@@ -54,7 +55,6 @@ public class InsnModifier {
                 }
                 break;
             case "FIELD":
-                reference = asmp.getObfuscationMapper().unmapFieldReference(at.getTarget());
                 for(AbstractInsnNode abstractInsnNode: methodNode.instructions) {
                     if(abstractInsnNode instanceof FieldInsnNode) {
                         FieldInsnNode fieldInsnNode = (FieldInsnNode) abstractInsnNode;
@@ -65,7 +65,7 @@ public class InsnModifier {
 
                 // remove if ordinal is not -1
                 if(at.getOrdinal() != -1) {
-                    if(at.getOrdinal() >= nodes.size()) throw new ASMPBadOrdinalException(classNode.name, methodNode.name);
+                    if(at.getOrdinal() >= nodes.size()) throw new ASMPBadOrdinalException(classNode.name, methodNode.name, nodes.size());
                     else {
                         AbstractInsnNode abstractInsnNode = nodes.get(at.getOrdinal());
                         nodes.clear();
@@ -120,6 +120,10 @@ public class InsnModifier {
             methodNode.instructions.insert(target, abstractInsnNode);
             methodNode.instructions.remove(target);
         });
+    }
+
+    public List<AbstractInsnNode> getTargets() {
+        return nodes;
     }
 
     public MethodNode getMethodNode() {

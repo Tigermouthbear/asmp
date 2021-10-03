@@ -7,7 +7,6 @@ import dev.tigr.asmp.exceptions.ASMPMethodNotFoundException;
 import dev.tigr.asmp.modification.Modification;
 import dev.tigr.asmp.util.InsnModifier;
 import dev.tigr.asmp.util.NodeUtils;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -24,7 +23,7 @@ public class ModifyModification extends Modification<Annotations.Modify> {
     }
 
     @Override
-    public void invoke(String patchClazzName, ClassNode classNode, MethodNode modify, Object generated) {
+    public void invoke(ClassNode patchNode, ClassNode classNode, MethodNode modify, Object generated) {
         Method method = NodeUtils.getMethod(generated.getClass(), modify.name, modify.desc);
         if(method != null) {
             String input = annotation.getValue();
@@ -35,7 +34,7 @@ public class ModifyModification extends Modification<Annotations.Modify> {
                     method.invoke(generated, classNode);
                 } catch (IllegalAccessException | InvocationTargetException e) {
                     e.printStackTrace();
-                    throw new ASMPBadArgumentsException(patchClazzName, method.getName());
+                    throw new ASMPBadArgumentsException(patchNode.name, method.getName());
                 }
             } else {
                 // we need to find a method node to use from now on
@@ -47,7 +46,7 @@ public class ModifyModification extends Modification<Annotations.Modify> {
                             method.invoke(generated, methodNode);
                         } catch (IllegalAccessException | InvocationTargetException e) {
                             e.printStackTrace();
-                            throw new ASMPBadArgumentsException(patchClazzName, method.getName());
+                            throw new ASMPBadArgumentsException(patchNode.name, method.getName());
                         }
                     } else {
                         // user wants to use an insn modifier
@@ -56,11 +55,11 @@ public class ModifyModification extends Modification<Annotations.Modify> {
                             method.invoke(generated, insnModifier);
                         } catch (IllegalAccessException | InvocationTargetException e) {
                             e.printStackTrace();
-                            throw new ASMPBadArgumentsException(patchClazzName, method.getName());
+                            throw new ASMPBadArgumentsException(patchNode.name, method.getName());
                         }
                     }
-                } else throw new ASMPMethodNotFoundException(patchClazzName, method.getName());
+                } else throw new ASMPMethodNotFoundException(patchNode.name, method.getName());
             }
-        } else throw new ASMPMethodNotFoundException(patchClazzName, modify.name);
+        } else throw new ASMPMethodNotFoundException(patchNode.name, modify.name);
     }
 }

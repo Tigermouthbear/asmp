@@ -3,8 +3,9 @@ Java class patcher using ASM and compatible with Minecraft Forge. This is a work
 
 ## Todo List
 - Fix RETURN crash after try catch
-- Shadow variables
-- FIELD @At targeting
+- Fix Redirect
+- Add FIELD targeting to Inject
+- Shadow methods
 - Slice targeting
 
 ## Using (0.2-SNAPSHOT) with forgegradle

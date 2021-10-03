@@ -17,11 +17,12 @@ public class OverwriteModification extends Modification<Annotations.Overwrite> {
     }
 
     @Override
-    public void invoke(String patchClassName, ClassNode classNode, MethodNode overwrite) {
+    public void invoke(ClassNode patchNode, ClassNode classNode, MethodNode overwrite) {
         // find method node
         MethodNode methodNode = NodeUtils.getMethod(classNode, unmapMethodReference(annotation.getValue()));
         if(methodNode != null) {
             methodNode.instructions = overwrite.instructions;
-        } else throw new ASMPMethodNotFoundException(patchClassName, overwrite.name);
+            shadowVariables(patchNode, methodNode);
+        } else throw new ASMPMethodNotFoundException(patchNode.name, overwrite.name);
     }
 }
